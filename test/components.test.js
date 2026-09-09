@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 import { parseAzox } from '../core/compiler/parser.js';
 import { resolveComponents, ComponentError } from '../core/compiler/resolveComponents.js';
+import { createNodeResolver } from '../core/nodeResolver.js';
 import { renderToHtml } from '../core/renderer/renderToHtml.js';
 import { BuildError } from '../core/buildError.js';
 
@@ -20,7 +21,7 @@ const renderPage = (source, scope = {}) => {
   const pagePath = join(dir, 'pages/index.azox');
   writeFileSync(pagePath, source);
 
-  const resolved = resolveComponents(parseAzox(source), pagePath);
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
   return renderToHtml(resolved, scope);
 };
 

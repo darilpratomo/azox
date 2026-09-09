@@ -6,8 +6,6 @@ import { compileToModule } from '../core/compiler/compileToJs.js';
 
 const compile = (source, options = {}) =>
   compileToModule(parseAzox(source), {
-    sourcePath: '/project/pages/index.azox',
-    outPath: '/project/.azox/build/index.client.js',
     runtimeSpecifier: './azox-runtime.js',
     ...options,
   });
@@ -50,15 +48,28 @@ test('on: attributes become event listeners, not attributes', () => {
   assert.doesNotMatch(code, /setAttribute\("on:click"/);
 });
 
-test('rebases a relative import to the output directory', () => {
+// Path rewriting belongs to the build, which knows where files land;
+// the compiler only offers the hook. The real rebasing is covered in
+// build-api.test.js.
+test('applies the rewriteImports hook to the user script', () => {
+  const code = compile(
+    `<script>
+  import { helper } from '../lib/helper.js';
+</script>
+<div>x</div>`,
+    { rewriteImports: (script) => script.replace('../lib/helper.js', './REWRITTEN.js') }
+  );
+
+  assert.match(code, /from '\.\/REWRITTEN\.js'/);
+});
+
+test('leaves the script alone when no rewriteImports hook is given', () => {
   const code = compile(`<script>
   import { helper } from '../lib/helper.js';
 </script>
 <div>x</div>`);
 
-  // pages/../lib/helper.js -> /project/lib/helper.js, seen from
-  // /project/.azox/build/ that is ../../lib/helper.js
-  assert.match(code, /from '\.\.\/\.\.\/lib\/helper\.js'/);
+  assert.match(code, /from '\.\.\/lib\/helper\.js'/);
 });
 
 test('leaves bare specifiers untouched for the resolver', () => {

@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 
 import { parseAzox } from '../compiler/parser.js';
 import { resolveComponents } from '../compiler/resolveComponents.js';
+import { createNodeResolver } from '../nodeResolver.js';
 import { listRoutes, PAGES_DIR } from '../build.js';
 import { BANNER, VERSION } from '../meta.js';
 
@@ -38,7 +39,11 @@ export function doctorCommand() {
   // build.
   for (const route of routes) {
     try {
-      resolveComponents(parseAzox(readFileSync(route.sourcePath, 'utf8')), route.sourcePath);
+      resolveComponents(
+        parseAzox(readFileSync(route.sourcePath, 'utf8')),
+        route.sourcePath,
+        createNodeResolver()
+      );
       checks.push({ ok: true, label: `${route.url}`, note: `${PAGES_DIR}/${route.name}.azox` });
     } catch (error) {
       checks.push({

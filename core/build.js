@@ -4,13 +4,14 @@
 // change, so it returns data rather than printing.
 
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
-import { resolve, basename } from 'node:path';
+import { resolve, basename, relative, dirname } from 'node:path';
 
 import { parseAzox } from './compiler/parser.js';
 import { resolveComponents } from './compiler/resolveComponents.js';
 import { compileToModule } from './compiler/compileToJs.js';
 import { renderToHtml } from './renderer/renderToHtml.js';
 import { collectRoutes, findRoute } from './routes.js';
+import { createNodeResolver } from './nodeResolver.js';
 import { ROOT_DIR } from './meta.js';
 import { BuildError } from './buildError.js';
 
@@ -37,7 +38,7 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
 
   // Components are inlined here, before either output is produced, so
   // the compiler and the renderer both see plain markup.
-  const ast = resolveComponents(parsed, sourcePath);
+  const ast = resolveComponents(parsed, sourcePath, createNodeResolver());
 
   // SSR pass: render initial markup without touching browser DOM APIs.
   let html;
@@ -62,9 +63,11 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
 
   const clientModule = rewriteRuntimeImports(
     compileToModule(ast, {
-      sourcePath,
-      outPath: clientPath,
       runtimeSpecifier,
+      // The user's own relative imports were written next to the
+      // page; the compiled module lives in .azox/build/, so they need
+      // re-expressing from there.
+      rewriteImports: (script) => rebaseImports(script, dirname(sourcePath), clientPath),
     }),
     runtimeSpecifier
   );
@@ -112,6 +115,21 @@ export function buildPage(projectDir, pageName, options) {
 // path the compiler emitted for the runtime import.
 function rewriteRuntimeImports(code, runtimeSpecifier) {
   return code.replace(/(['"])azox(?:\/reactivity)?\1/g, `'${runtimeSpecifier}'`);
+}
+
+// Re-expresses the relative imports in a page's <script> so they
+// still resolve from the compiled module's directory. Lives here
+// rather than in the compiler because it is a fact about where files
+// land on disk, which the compiler deliberately knows nothing about.
+function rebaseImports(script, sourceDir, outPath) {
+  return script.replace(
+    /(from\s+|import\s+)(['"])(\.[^'"]*)\2/g,
+    (full, keyword, quote, specifier) => {
+      let rebased = relative(dirname(outPath), resolve(sourceDir, specifier));
+      if (!rebased.startsWith('.')) rebased = `./${rebased}`;
+      return `${keyword}${quote}${rebased}${quote}`;
+    }
+  );
 }
 
 // A compiler must never write output it knows is broken. Parsing the

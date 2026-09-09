@@ -3,26 +3,27 @@
 // its own effect — no Virtual DOM tree, no diffing. A signal update
 // touches exactly the text node or attribute it owns.
 
-import { relative, dirname, resolve } from 'node:path';
+// This module has no Node built-ins on purpose: it runs unchanged in
+// the browser, which is what makes the playground possible. Anything
+// that needs to know about paths on disk belongs in build.js.
 
 let uid = 0;
 const nextId = () => `_el${uid++}`;
 
-// sourcePath: absolute path of the .azox file being compiled.
-// outPath: absolute path of the client module being written.
 // runtimeSpecifier: how the emitted module should import the Azox
-//   runtime — a bare "azox/reactivity" for user projects, or a
-//   relative path when compiling inside the framework itself.
-//
-// Relative import specifiers in the user's <script> are resolved
-// against sourcePath and re-expressed relative to outPath, since
-// compiled output lives in .azox/build/, not next to the page.
-// Bare specifiers are left untouched for the resolver to handle.
-export function compileToModule(ast, { sourcePath, outPath, runtimeSpecifier }) {
+//   runtime — a relative path to the copied runtime for a build, or
+//   whatever the playground wants to point at.
+// rewriteImports: optional hook the build uses to rebase the user's
+//   own relative imports, since compiled output lives in
+//   .azox/build/ rather than next to the page. The playground has no
+//   output directory, so it omits this.
+export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
   uid = 0;
   const statements = [];
   const rootVar = emitNode(ast.markup, statements, 'root');
-  const script = rebaseImports(dropComponentImports(ast.script), dirname(sourcePath), outPath);
+
+  let script = dropComponentImports(ast.script);
+  if (rewriteImports) script = rewriteImports(script);
 
   return `
 import { effect } from '${runtimeSpecifier}';
@@ -120,20 +121,3 @@ function dropComponentImports(script) {
   return script.replace(/^\s*import\s+[A-Z]\w*\s+from\s+['"][^'"]+\.azox['"]\s*;?\s*$/gm, '');
 }
 
-// Rewrites every relative import specifier in the user's <script>
-// block so it still resolves once the module lives in outPath
-// instead of next to sourceDir.
-function rebaseImports(script, sourceDir, outPath) {
-  return script.replace(
-    /(from\s+|import\s+)(['"])(\.[^'"]*)\2/g,
-    (full, keyword, quote, specifier) =>
-      `${keyword}${quote}${rebaseSpecifier(resolve(sourceDir, specifier), outPath)}${quote}`
-  );
-}
-
-// Re-expresses an absolute target path as a path relative to outPath.
-function rebaseSpecifier(absoluteTarget, outPath) {
-  let rebased = relative(dirname(outPath), absoluteTarget);
-  if (!rebased.startsWith('.')) rebased = `./${rebased}`;
-  return rebased;
-}

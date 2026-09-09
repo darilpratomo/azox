@@ -6,9 +6,6 @@
 // of reuse, so the emitted code looks the same as if the markup had
 // been written by hand.
 
-import { readFileSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-
 import { parseAzox } from './parser.js';
 import { BuildError } from '../buildError.js';
 
@@ -19,31 +16,42 @@ export class ComponentError extends BuildError {}
 // Returns the AST with every component reference replaced by that
 // component's markup. The caller's script is untouched: components
 // contribute markup only.
-export function resolveComponents(ast, sourcePath, seen = new Set()) {
-  return { ...ast, markup: expand(ast.markup, ast, sourcePath, seen) };
+//
+// `resolver` decides how an import specifier becomes source text, so
+// this runs unchanged against disk or against an in-memory map. See
+// sourceResolver.js.
+export function resolveComponents(ast, sourcePath, resolver, seen = new Set()) {
+  return { ...ast, markup: expand(ast.markup, ast, sourcePath, resolver, seen) };
 }
 
-function expand(node, ast, sourcePath, seen) {
+function expand(node, ast, sourcePath, resolver, seen) {
   if (!node || node.type === 'text') return node;
 
-  const children = (node.children ?? []).map((child) => expand(child, ast, sourcePath, seen));
+  const children = (node.children ?? []).map((child) =>
+    expand(child, ast, sourcePath, resolver, seen)
+  );
 
   if (node.type !== 'component') {
     return { ...node, children };
   }
 
-  const component = loadComponent(node.name, ast, sourcePath, seen);
+  const component = loadComponent(node.name, ast, sourcePath, resolver, seen);
   validateProps(node, component);
   validateNoLocalState(node.name, component);
 
   // The component's own body may reference further components, so
-  // expand it in its own directory against its own imports.
-  const inner = resolveComponents(component.ast, component.path, new Set([...seen, component.path]));
+  // expand it against its own imports and its own location.
+  const inner = resolveComponents(
+    component.ast,
+    component.path,
+    resolver,
+    new Set([...seen, component.path])
+  );
 
   return substituteProps(inner.markup, propValues(node, component.ast.props), children);
 }
 
-function loadComponent(name, ast, sourcePath, seen) {
+function loadComponent(name, ast, sourcePath, resolver, seen) {
   const specifier = ast.components[name];
 
   if (!specifier) {
@@ -52,17 +60,19 @@ function loadComponent(name, ast, sourcePath, seen) {
     );
   }
 
-  const path = resolve(dirname(sourcePath), specifier);
+  const path = resolver.resolve(specifier, sourcePath);
 
   if (seen.has(path)) {
     throw new ComponentError(`component cycle detected: ${name} eventually renders itself`);
   }
 
-  if (!existsSync(path)) {
+  const source = resolver.read(path);
+
+  if (source === null) {
     throw new ComponentError(`<${name}> points at ${specifier}, which does not exist`);
   }
 
-  return { path, ast: parseAzox(readFileSync(path, 'utf8')) };
+  return { path, ast: parseAzox(source) };
 }
 
 // Components are presentational in this version: they take props and
