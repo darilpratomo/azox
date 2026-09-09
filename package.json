@@ -1,0 +1,24 @@
+{
+  "name": "azox.dev",
+  "version": "0.0.1",
+  "description": "Azox Framework — The Sound of Future Web",
+  "type": "module",
+  "license": "MIT",
+  "author": "Daril Pratomo <darilprtmsr@gmail.com>",
+  "bin": {
+    "azox": "./bin/azox.js"
+  },
+  "main": "./core/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node ./bin/azox.js test"
+  },
+  "keywords": [
+    "azox",
+    "framework",
+    "cli"
+  ],
+  "dependencies": {}
+}

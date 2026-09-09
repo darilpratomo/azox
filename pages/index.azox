@@ -1,0 +1,13 @@
+<script>
+  import { signal } from '../core/reactivity/signal.js';
+
+  const count = signal(0);
+</script>
+
+<main class="page">
+  <h1>Azox Framework</h1>
+  <p>The Sound of Future Web</p>
+  <button on:click={() => count.set(count() + 1)}>
+    Clicks: {count()}
+  </button>
+</main>
