@@ -107,19 +107,56 @@
       <CodeBlock label="error"><text>Azox: <Card> was given "subtitle", which it does not
 declare. It accepts: title, body.</text></CodeBlock>
 
-      <h2>Components are presentational</h2>
-      <div class="note note-warn">
+      <h2>Components can hold state</h2>
+      <p>
+        A component may declare signals of its own. Each use of it gets its
+        own copy, so two <code>&lt;Counter /&gt;</code> tags hold two
+        independent counts.
+      </p>
+
+      <CodeBlock label="components/Counter.azox"><text><script>
+  import { signal } from 'azox/reactivity';
+
+  const { label } = props();
+  const count = signal(0);
+</script>
+
+<div class="counter">
+  <span>{label}: {count()}</span>
+  <button on:click={() => count.set(count() + 1)}>+</button>
+</div></text></CodeBlock>
+
+      <CodeBlock label="pages/index.azox"><text><script>
+  import Counter from '../components/Counter.azox';
+</script>
+
+<main>
+  <Counter label="Left" />
+  <Counter label="Right" />
+</main></text></CodeBlock>
+
+      <p>
+        Clicking one counter leaves the other alone. There is no component
+        instance behind this — the compiler wraps each use in an ordinary
+        JavaScript scope, so the two <code>count</code> declarations are simply
+        two different local bindings.
+      </p>
+
+      <div class="note">
         <p>
-          <strong>A component cannot declare its own state in this version.</strong>
-          Because it is inlined into its caller, anything it declared would
-          share the caller's scope and could collide with it. That is rejected
-          with an explicit error rather than producing a subtle bug.
+          A component with no logic of its own is still inlined directly, with
+          no wrapper at all. You only pay for a scope when you declare
+          something that needs one.
         </p>
       </div>
 
-      <p>Keep state in the page, and pass it down:</p>
+      <h3>Lifting state up</h3>
+      <p>
+        When two components need to agree on a value, keep it in the page and
+        pass it down as a prop, the way you would anywhere else.
+      </p>
 
-      <CodeBlock label="pattern"><text><!-- components/Counter.azox: display only -->
+      <CodeBlock label="shared state"><text><!-- components/Readout.azox: display only -->
 <script>
   const { label, value } = props();
 </script>
@@ -127,16 +164,16 @@ declare. It accepts: title, body.</text></CodeBlock>
 <p>{label}: {value}</p>
 
 
-<!-- pages/index.azox: owns the state -->
+<!-- pages/index.azox: owns the shared value -->
 <script>
-  import Counter from '../components/Counter.azox';
+  import Readout from '../components/Readout.azox';
   import { signal } from 'azox/reactivity';
 
   const count = signal(0);
 </script>
 
 <main>
-  <Counter label="Clicks" value={count()} />
+  <Readout label="Clicks" value={count()} />
   <button on:click={() => count.set(count() + 1)}>Add</button>
 </main></text></CodeBlock>
 

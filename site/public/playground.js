@@ -18,30 +18,44 @@ const STARTER = {
   import Card from './Card.azox';
   import { signal } from 'azox/reactivity';
 
-  const count = signal(0);
-  const name = signal('world');
+  const names = signal(['Ada', 'Grace']);
+  const draft = signal('');
 </script>
 
 <main>
-  <h1>Hello, {name()}</h1>
+  <h1>Team</h1>
 
-  <Card label="Clicks" value={count()} />
+  <!-- Each Card holds its own count, independently. -->
+  <each item={names()} as="name">
+    <Card label={name} />
+  </each>
 
-  <button on:click={() => count.set(count() + 1)}>
-    Add one
-  </button>
-
-  <input
-    value={name()}
-    on:input={(e) => name.set(e.target.value)}
-  />
+  <if cond={names().length < 4}>
+    <input
+      value={draft()}
+      on:input={(e) => draft.set(e.target.value)}
+      placeholder="Add someone"
+    />
+    <button on:click={() => {
+      if (draft()) names.set([...names(), draft()]);
+      draft.set('');
+    }}>Add</button>
+  <else />
+    <p>That is plenty of people.</p>
+  </if>
 </main>`,
 
   component: `<script>
-  const { label, value } = props();
+  import { signal } from 'azox/reactivity';
+
+  const { label } = props();
+  const count = signal(0);
 </script>
 
-<p class="card">{label}: {value}</p>`,
+<p class="card">
+  {label}: {count()}
+  <button on:click={() => count.set(count() + 1)}>+</button>
+</p>`,
 };
 
 // Styles for the preview document. Kept minimal so what you see is
@@ -165,7 +179,7 @@ function buildScope(source) {
   if (!match) return {};
 
   const body = match[1].replace(/^\s*import\s.+?;?\s*$/gm, '');
-  const names = [...body.matchAll(/const\s+(\w+)\s*=/g)].map((m) => m[1]);
+  const names = [...body.matchAll(/(?:const|let|var)\s+(\w+)\s*=/g)].map((m) => m[1]);
 
   const signal = (initial) => {
     let value = initial;
@@ -177,8 +191,16 @@ function buildScope(source) {
     return read;
   };
 
+  // Server rendering needs only the current value, so a computed here
+  // just calls its function. The real runtime takes over in the frame.
+  const computed = (fn) => () => fn();
+
   try {
-    return new Function('signal', `${body}\nreturn { ${names.join(', ')} };`)(signal);
+    return new Function(
+      'signal',
+      'computed',
+      `${body}\nreturn { ${names.join(', ')} };`
+    )(signal, computed);
   } catch (error) {
     throw new Error(`in <script>: ${error.message}`);
   }

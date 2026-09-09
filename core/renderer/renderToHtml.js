@@ -28,6 +28,7 @@ function renderNode(node, scope) {
   // list already rendered rather than filling in when scripts run.
   if (node.type === 'each') return renderEach(node, scope);
   if (node.type === 'if') return renderIf(node, scope);
+  if (node.type === 'scope') return renderScope(node, scope);
 
   const attrs = Object.entries(node.attrs)
     .filter(([key]) => !key.startsWith('on:'))
@@ -41,6 +42,53 @@ function renderNode(node, scope) {
 
   const inner = node.children.map((child) => renderNode(child, scope)).join('');
   return `<${node.name}${attrs}>${inner}</${node.name}>`;
+}
+
+// A stateful component runs its script here too, with the caller's
+// prop values bound as arguments, so the server sees the same initial
+// state the browser will build. Its declarations are added to a copy
+// of the scope, so they cannot leak into the surrounding page.
+function renderScope(node, scope) {
+  const args = node.args.map((expr) => evalExpr(expr, scope));
+
+  let declared;
+  try {
+    const names = declaredNames(node.script);
+    const fn = new Function(
+      'signal',
+      'computed',
+      ...node.params,
+      `${node.script}\nreturn { ${names.join(', ')} };`
+    );
+    declared = fn(serverSignal, serverComputed, ...args);
+  } catch (error) {
+    throw new BuildError(`in <${node.name}>: ${error.message}`);
+  }
+
+  const inner = { ...scope, ...declared };
+  for (const [i, param] of node.params.entries()) inner[param] = args[i];
+
+  return node.children.map((child) => renderNode(child, inner)).join('');
+}
+
+function declaredNames(script) {
+  return [...script.matchAll(/(?:const|let|var)\s+(\w+)\s*=/g)].map((match) => match[1]);
+}
+
+// Server rendering needs only the current value, so a signal here is
+// a plain box. The real reactive runtime takes over in the browser.
+function serverSignal(initial) {
+  let value = initial;
+  const read = () => value;
+  read.set = (next) => {
+    value = typeof next === 'function' ? next(value) : next;
+  };
+  read.peek = () => value;
+  return read;
+}
+
+function serverComputed(fn) {
+  return () => fn();
 }
 
 // Each iteration renders with the loop variable added to the scope,

@@ -21,10 +21,15 @@ export class ComponentError extends BuildError {}
 // this runs unchanged against disk or against an in-memory map. See
 // sourceResolver.js.
 export function resolveComponents(ast, sourcePath, resolver, seen = new Set()) {
-  return { ...ast, markup: expand(ast.markup, ast, sourcePath, resolver, seen) };
+  // Imports from stateful components are hoisted here: they cannot
+  // live inside the scope function the compiler builds for each one.
+  const hoisted = new Set();
+  const markup = expand(ast.markup, ast, sourcePath, resolver, seen, hoisted);
+
+  return { ...ast, markup, componentImports: [...hoisted] };
 }
 
-function expand(node, ast, sourcePath, resolver, seen) {
+function expand(node, ast, sourcePath, resolver, seen, hoisted) {
   if (!node || node.type === 'text') return node;
 
   // <if> keeps its children in two branches rather than in `children`,
@@ -33,13 +38,15 @@ function expand(node, ast, sourcePath, resolver, seen) {
   if (node.type === 'if') {
     return {
       ...node,
-      then: node.then.map((child) => expand(child, ast, sourcePath, resolver, seen)),
-      otherwise: node.otherwise.map((child) => expand(child, ast, sourcePath, resolver, seen)),
+      then: node.then.map((child) => expand(child, ast, sourcePath, resolver, seen, hoisted)),
+      otherwise: node.otherwise.map((child) =>
+        expand(child, ast, sourcePath, resolver, seen, hoisted)
+      ),
     };
   }
 
   const children = (node.children ?? []).map((child) =>
-    expand(child, ast, sourcePath, resolver, seen)
+    expand(child, ast, sourcePath, resolver, seen, hoisted)
   );
 
   if (node.type !== 'component') {
@@ -48,7 +55,6 @@ function expand(node, ast, sourcePath, resolver, seen) {
 
   const component = loadComponent(node.name, ast, sourcePath, resolver, seen);
   validateProps(node, component);
-  validateNoLocalState(node.name, component);
 
   // The component's own body may reference further components, so
   // expand it against its own imports and its own location.
@@ -59,7 +65,66 @@ function expand(node, ast, sourcePath, resolver, seen) {
     new Set([...seen, component.path])
   );
 
-  return substituteProps(inner.markup, propValues(node, component.ast.props), children);
+  const values = propValues(node, component.ast.props);
+  const { logic, imports } = componentLogic(component.ast.script);
+
+  // Without logic the component is inlined outright, and its props are
+  // rewritten to the caller's expressions in place.
+  if (!logic) {
+    return substituteProps(inner.markup, values, children);
+  }
+
+  for (const line of imports) hoisted.add(line);
+
+  // Imports the component's own body pulled up are needed by anything
+  // nested inside it too.
+  for (const line of inner.componentImports ?? []) hoisted.add(line);
+
+  // With logic the markup gets a scope of its own, so each use has its
+  // own copy of whatever the component declares — two <Counter /> tags
+  // hold two independent counts rather than colliding over one
+  // binding. Props become parameters of that scope, so they are left
+  // as names here rather than being replaced by the caller's
+  // expressions; the values are passed in as arguments instead.
+  const markup = substituteProps(inner.markup, {}, children);
+
+  // This is ordinary JavaScript scoping, not a component instance:
+  // nothing about it survives into the runtime.
+  return {
+    type: 'scope',
+    name: node.name,
+    script: logic,
+    params: component.ast.props,
+    args: component.ast.props.map((prop) => values[prop] ?? 'undefined'),
+    children: [markup],
+  };
+}
+
+// Splits a component's script into the imports it needs and the logic
+// that belongs inside its scope.
+//
+// Imports cannot live inside a function, so they are hoisted to the
+// module and collected on the AST for the compiler to emit. What is
+// left — minus the props() line, which becomes parameters — is the
+// component's own logic. `logic` is null when there is none, which is
+// what lets a purely presentational component stay inlined.
+function componentLogic(script) {
+  if (!script) return { logic: null, imports: [] };
+
+  const imports = [...script.matchAll(/^\s*(import\s[^;\n]+;?)\s*$/gm)]
+    .map((match) => match[1].trim())
+    // Component imports are resolved at build time and must not reach
+    // the browser as a .azox specifier.
+    .filter((line) => !/\.azox['"]/.test(line));
+
+  const body = script
+    .replace(/^\s*import\s.+?;?\s*$/gm, '')
+    .replace(/const\s*\{[^}]*\}\s*=\s*props\(\)\s*;?/, '');
+
+  // Comments alone are not logic.
+  const meaningful = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  return { logic: meaningful.trim() ? body.trim() : null, imports };
 }
 
 function loadComponent(name, ast, sourcePath, resolver, seen) {
@@ -84,32 +149,6 @@ function loadComponent(name, ast, sourcePath, resolver, seen) {
   }
 
   return { path, ast: parseAzox(source) };
-}
-
-// Components are presentational in this version: they take props and
-// render markup. Because a component is inlined into its caller,
-// state declared inside one would share the caller's scope and could
-// collide with it — so it is rejected outright rather than producing
-// a subtle bug. Lifting the restriction needs per-component scoping,
-// which is a deliberate design step, not an accident.
-function validateNoLocalState(name, component) {
-  const script = component.ast.script;
-  if (!script) return;
-
-  // Comments are documentation, not logic, so they are stripped
-  // before deciding whether a component declares anything.
-  const remaining = script
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '')
-    .replace(/^\s*import\s.+?;?\s*$/gm, '')
-    .replace(/const\s*\{[^}]*\}\s*=\s*props\(\)\s*;?/, '');
-
-  if (remaining.trim()) {
-    throw new ComponentError(
-      `<${name}> declares logic beyond props(), which this version does not support. ` +
-        'Components take props and render markup; keep state in the page that uses them.'
-    );
-  }
 }
 
 // A caller passing something the component never declared is almost

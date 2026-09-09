@@ -217,7 +217,7 @@ test('a component that renders itself is caught instead of looping', () => {
   );
 });
 
-test('a component with logic beyond props() is rejected', () => {
+test('a component can declare its own state', () => {
   writeComponent(
     'Stateful.azox',
     `<script>
@@ -226,14 +226,100 @@ test('a component with logic beyond props() is rejected', () => {
 <p>{n}</p>`
   );
 
-  assert.throws(
-    () =>
-      renderPage(`<script>
+  assert.equal(
+    renderPage(`<script>
   import Stateful from '../components/Stateful.azox';
 </script>
 <main><Stateful /></main>`),
-    /does not support/
+    '<main><p>5</p></main>'
   );
+});
+
+// Each use of a stateful component gets a scope of its own, so its
+// declarations cannot collide with another use of the same component.
+test('two uses of a stateful component get separate scopes', () => {
+  writeComponent(
+    'Counter.azox',
+    `<script>
+  import { signal } from 'azox/reactivity';
+  const { label } = props();
+  const count = signal(0);
+</script>
+<span>{label}:{count()}</span>`
+  );
+
+  const source = `<script>
+  import Counter from '../components/Counter.azox';
+</script>
+<main><Counter label="A" /><Counter label="B" /></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
+
+  assert.equal(
+    (js.match(/const count = signal\(0\);/g) ?? []).length,
+    2,
+    'each use declares its own count'
+  );
+  assert.equal((js.match(/\(\(label\) => \{/g) ?? []).length, 2, 'each use gets its own scope');
+});
+
+test('a stateful component server-renders its initial state', () => {
+  assert.equal(
+    renderPage(`<script>
+  import Counter from '../components/Counter.azox';
+</script>
+<main><Counter label="A" /><Counter label="B" /></main>`),
+    '<main><span>A:0</span><span>B:0</span></main>'
+  );
+});
+
+// A component's imports cannot live inside the scope function, so
+// they are hoisted to the module.
+test("a stateful component's imports are hoisted to the module", () => {
+  const source = `<script>
+  import Counter from '../components/Counter.azox';
+</script>
+<main><Counter label="A" /></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
+
+  const importAt = js.indexOf("import { signal }");
+  const scopeAt = js.indexOf('(label) => {');
+
+  assert.ok(importAt !== -1, 'the signal import must survive');
+  assert.ok(importAt < scopeAt, 'and must sit outside the scope function');
+});
+
+test('a component with no logic is still inlined, without a scope', () => {
+  writeComponent(
+    'Plain2.azox',
+    `<script>
+  const { text } = props();
+</script>
+<em>{text}</em>`
+  );
+
+  const source = `<script>
+  import Plain2 from '../components/Plain2.azox';
+</script>
+<main><Plain2 text="hi" /></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
+
+  assert.doesNotMatch(js, /=> \{[\s\S]*return _el/, 'no scope function is needed');
+  assert.equal(renderToHtml(resolved, {}), '<main><em>hi</em></main>');
 });
 
 // Regression: an attribute expression that becomes constant once the
@@ -326,6 +412,125 @@ test('folding never runs a function call', () => {
 
   assert.match(js, /sideEffect\(\)/, 'the call must survive to runtime');
   assert.match(js, /effect\(/);
+});
+
+test('a stateful component works inside a loop', () => {
+  assert.equal(
+    renderPage(
+      `<script>
+  import Counter from '../components/Counter.azox';
+</script>
+<main><each item={rows()} as="r"><Counter label={r} /></each></main>`,
+      { rows: () => ['a', 'b'] }
+    ),
+    '<main><span>a:0</span><span>b:0</span></main>'
+  );
+});
+
+test('a stateful component works inside a conditional', () => {
+  assert.equal(
+    renderPage(
+      `<script>
+  import Counter from '../components/Counter.azox';
+</script>
+<main><if cond={ok()}><Counter label="x" /></if></main>`,
+      { ok: () => true }
+    ),
+    '<main><span>x:0</span></main>'
+  );
+});
+
+test('a component can loop over its own state', () => {
+  writeComponent(
+    'OwnList.azox',
+    `<script>
+  import { signal } from 'azox/reactivity';
+  const items = signal(['p', 'q']);
+</script>
+<ul><each item={items()} as="x"><li>{x}</li></each></ul>`
+  );
+
+  assert.equal(
+    renderPage(`<script>
+  import OwnList from '../components/OwnList.azox';
+</script>
+<main><OwnList /></main>`),
+    '<main><ul><li>p</li><li>q</li></ul></main>'
+  );
+});
+
+test('a component can use computed', () => {
+  writeComponent(
+    'Doubled.azox',
+    `<script>
+  import { signal, computed } from 'azox/reactivity';
+  const n = signal(3);
+  const double = computed(() => n() * 2);
+</script>
+<p>{double()}</p>`
+  );
+
+  assert.equal(
+    renderPage(`<script>
+  import Doubled from '../components/Doubled.azox';
+</script>
+<main><Doubled /></main>`),
+    '<main><p>6</p></main>'
+  );
+});
+
+test('stateful components nest', () => {
+  writeComponent(
+    'Inner.azox',
+    `<script>
+  import { signal } from 'azox/reactivity';
+  const m = signal(2);
+</script>
+<i>{m()}</i>`
+  );
+  writeComponent(
+    'Outer.azox',
+    `<script>
+  import Inner from './Inner.azox';
+  import { signal } from 'azox/reactivity';
+  const n = signal(1);
+</script>
+<div><b>{n()}</b><Inner /></div>`
+  );
+
+  assert.equal(
+    renderPage(`<script>
+  import Outer from '../components/Outer.azox';
+</script>
+<main><Outer /></main>`),
+    '<main><div><b>1</b><i>2</i></div></main>'
+  );
+});
+
+// Regression: the page and a component both importing `signal`
+// produced two identical import statements, which is a syntax error.
+test('an import shared by page and component is declared once', () => {
+  const source = `<script>
+  import Counter from '../components/Counter.azox';
+  import { signal } from 'azox/reactivity';
+
+  const n = signal(1);
+</script>
+<main><Counter label="a" /><p>{n()}</p></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: 'azox/reactivity' });
+
+  const declarations = [...js.matchAll(/^import .*\bsignal\b.*$/gm)];
+  assert.equal(declarations.length, 1, 'signal must be imported exactly once');
+
+  // And the output has to actually parse.
+  assert.doesNotThrow(() =>
+    new Function(js.replace(/^import .+$/gm, '').replace(/^export /gm, ''))
+  );
 });
 
 test('component errors are BuildErrors, so the CLI reports them plainly', () => {

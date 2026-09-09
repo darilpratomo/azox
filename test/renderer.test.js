@@ -69,6 +69,24 @@ test('runs of whitespace collapse to one space', () => {
   assert.equal(render('<p>one     two</p>'), '<p>one two</p>');
 });
 
+// Regression: a comment was parsed as a tag, so writing one produced
+// a confusing error about an element nobody had written.
+test('an HTML comment is dropped from the output', () => {
+  assert.equal(render('<div><!-- note --><p>x</p></div>'), '<div><p>x</p></div>');
+});
+
+test('a comment containing tags is still just a comment', () => {
+  assert.equal(render('<div><!-- <b>not real</b> --><p>x</p></div>'), '<div><p>x</p></div>');
+});
+
+test('a comment may span lines', () => {
+  assert.equal(render('<div><!--\n  over\n  lines\n--><p>x</p></div>'), '<div><p>x</p></div>');
+});
+
+test('an unclosed comment is reported', () => {
+  assert.throws(() => parseAzox('<div><!-- oops</div>'), /comment is never closed/);
+});
+
 test('a <text> block renders its content literally', () => {
   const html = render('<pre><text><button on:click={go}>Hi</button></text></pre>');
   assert.equal(html, '<pre>&lt;button on:click={go}&gt;Hi&lt;/button&gt;</pre>');

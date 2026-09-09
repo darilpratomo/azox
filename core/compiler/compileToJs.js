@@ -34,9 +34,19 @@ export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
       line.startsWith('effect(') || line.includes('.addEventListener(')
   );
 
+  // Stateful components keep their logic inside a scope function, but
+  // their imports cannot live there, so the resolver hoisted them.
+  // They need the same path rewriting the page's own imports get,
+  // then merging with them: declaring the same binding twice is a
+  // syntax error.
+  let hoisted = ast.componentImports ?? [];
+  if (rewriteImports) hoisted = hoisted.map((line) => rewriteImports(line));
+
+  const { imports, body } = mergeImports(script, hoisted, runtimeSpecifier);
+
   return `
-import { effect } from '${runtimeSpecifier}';
-${script}
+${imports}
+${body}
 
 export function render(mount) {
 ${statements.map((line) => '  ' + line).join('\n')}
@@ -44,6 +54,52 @@ ${statements.map((line) => '  ' + line).join('\n')}
   return ${rootVar};
 }
 ${isStatic ? staticNote() : hydrateBlock()}`.trimStart();
+}
+
+// Collects every import the module needs into one set of statements,
+// pulling the page's own imports out of its script so they cannot be
+// duplicated by an identical import hoisted from a component.
+//
+// Named imports from the same specifier are merged into one
+// statement, so `signal` imported by both the page and a component is
+// declared once rather than twice — which would be a syntax error.
+function mergeImports(script, componentImports, runtimeSpecifier) {
+  const pageImports = [...script.matchAll(/^\s*(import\s[^;\n]+;?)\s*$/gm)].map((m) => m[1].trim());
+  const body = script.replace(/^\s*import\s[^;\n]+;?\s*$/gm, '').trim();
+
+  // specifier -> set of named bindings; anything not a plain named
+  // import is kept verbatim.
+  const named = new Map();
+  const verbatim = new Set();
+
+  const record = (statement) => {
+    const match = statement.match(/^import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/);
+
+    if (!match) {
+      verbatim.add(statement);
+      return;
+    }
+
+    const [, bindings, specifier] = match;
+    const set = named.get(specifier) ?? new Set();
+    for (const binding of bindings.split(',')) {
+      if (binding.trim()) set.add(binding.trim());
+    }
+    named.set(specifier, set);
+  };
+
+  // `effect` is always needed: the compiler emits calls to it.
+  record(`import { effect } from '${runtimeSpecifier}';`);
+  for (const statement of [...componentImports, ...pageImports]) record(statement);
+
+  const lines = [
+    ...[...named].map(([specifier, bindings]) => {
+      return `import { ${[...bindings].join(', ')} } from '${specifier}';`;
+    }),
+    ...verbatim,
+  ];
+
+  return { imports: lines.join('\n'), body };
 }
 
 function staticNote() {
@@ -84,6 +140,7 @@ function emitNode(node, statements, fallbackVar) {
 
   if (node.type === 'each') return emitEach(node, statements);
   if (node.type === 'if') return emitIf(node, statements);
+  if (node.type === 'scope') return emitScope(node, statements, fallbackVar);
 
   const varName = nextId();
   statements.push(`const ${varName} = document.createElement(${JSON.stringify(node.name)});`);
@@ -93,6 +150,38 @@ function emitNode(node, statements, fallbackVar) {
   }
 
   appendChildren(varName, node.children, statements, fallbackVar);
+
+  return varName;
+}
+
+// A component that declares its own state becomes an immediately
+// called function: its declarations are locals of that call, so two
+// uses of the same component hold two independent sets of them.
+//
+// This is scoping the language already provides, not a component
+// instance. There is nothing to mount, nothing to reconcile, and no
+// object representing the component at runtime — just a function that
+// runs once and returns the nodes it built.
+function emitScope(node, statements, fallbackVar) {
+  const varName = nextId();
+  const bodyLines = [];
+
+  const roots = node.children.map((child) => emitNode(child, bodyLines, fallbackVar));
+
+  statements.push(`const ${varName} = ((${node.params.join(', ')}) => {`);
+
+  // The component's own script comes first, so its declarations exist
+  // before the markup that reads them is built.
+  for (const line of node.script.split('\n')) {
+    statements.push(`  ${line}`);
+  }
+
+  for (const line of bodyLines) statements.push(`  ${line}`);
+
+  // A component renders one root; more than one would need a fragment,
+  // and the parser already requires a single root element.
+  statements.push(`  return ${roots[0] ?? 'null'};`);
+  statements.push(`})(${node.args.join(', ')});`);
 
   return varName;
 }

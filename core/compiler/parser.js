@@ -79,6 +79,17 @@ function tokenize(html) {
 
   while (i < html.length) {
     if (html[i] === '<') {
+      // An HTML comment is skipped outright. Treating it as a tag
+      // would fail on the "--" and report a confusing error about an
+      // element that was never written.
+      if (html.startsWith('<!--', i)) {
+        const close = html.indexOf('-->', i);
+        if (close === -1) throw new ParseError('Azox parse error: a comment is never closed');
+
+        i = close + '-->'.length;
+        continue;
+      }
+
       // <text> holds literal content: no tags, no {interpolation}.
       // Without it there is no way to show markup or braces on a
       // page, which documentation for this framework obviously needs.

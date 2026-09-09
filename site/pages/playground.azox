@@ -82,8 +82,9 @@
     </div>
 
     <p class="muted" style="margin-bottom: 3rem">
-      Components in this version take props and render markup; state lives in
-      the page. See <a href="/docs/components">components</a> and
+      Components take props and can hold state of their own — each use gets
+      its own copy. See <a href="/docs/components">components</a>,
+      <a href="/docs/control-flow">loops &amp; conditionals</a>, and
       <a href="/docs/limitations">limitations</a>.
     </p>
   </div>

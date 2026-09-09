@@ -26,17 +26,16 @@
         through building one.
       </p>
 
-      <h2>Components cannot hold state</h2>
+      <h2>No lifecycle hooks</h2>
       <p>
-        A component takes props and renders markup. It cannot declare its own
-        signals or logic. Because components are inlined into their caller,
-        anything declared inside one would share the caller's scope and could
-        collide with it, so the compiler rejects it outright rather than
-        producing a subtle bug.
+        Components <a href="/docs/components">can hold state</a>, but there is
+        nothing that runs when one appears or goes away — no mount, unmount or
+        cleanup hook. A component's script runs once, when the component is
+        built.
       </p>
       <p>
-        <strong>Workaround:</strong> keep state in the page and pass it down as
-        props. Reactivity crosses the boundary intact.
+        This matters if you need to start a timer, open a subscription, or
+        attach a listener to <code>window</code> and take it down again later.
       </p>
 
       <h2>Lists rebuild rather than reconcile</h2>

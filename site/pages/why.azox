@@ -196,8 +196,8 @@ pages/index.azox        →  one flat sequence of DOM calls
           </thead>
           <tbody>
             <tr>
-              <td>Component-local state</td>
-              <td>Components are inlined, so state inside one would share the caller's scope</td>
+              <td>Lifecycle hooks</td>
+              <td>A component's script runs once; nothing fires when it appears or goes away</td>
             </tr>
             <tr>
               <td>Keyed list reconciliation</td>
