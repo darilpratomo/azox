@@ -127,21 +127,11 @@ error rather than quietly sharing the caller's scope.
 
 ## Getting Started
 
-Azox is not on npm yet. To try it from a local checkout:
-
 ```bash
-git clone https://github.com/darilpratomo/azox.git
-cd azox
-npm link          # makes the `azox` command available
-```
-
-Then scaffold a project and start the dev server:
-
-```bash
-azox create my-app
+npx azox create my-app
 cd my-app
-npm link azox     # until Azox is published
-azox dev
+npm install
+npm run dev
 ```
 
 `azox dev` serves the project at `http://localhost:4321`, rebuilds on
@@ -152,7 +142,7 @@ once the page is fixed.
 For a production build:
 
 ```bash
-azox compile
+npm run build
 ```
 
 The build lands in `.azox/build/` as a self-contained static bundle —

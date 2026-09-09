@@ -1,6 +1,6 @@
 {
   "name": "azox",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Azox Framework — The Sound of Future Web",
   "type": "module",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/darilpratomo/azox.git"
   },
-  "homepage": "https://azox.dev",
+  "homepage": "https://github.com/darilpratomo/azox#readme",
   "bugs": {
     "url": "https://github.com/darilpratomo/azox/issues"
   },

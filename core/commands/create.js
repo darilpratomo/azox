@@ -59,8 +59,8 @@ export function createCommand({ positionals, flags }) {
   console.log('');
   console.log('Next:');
   console.log(`  cd ${name}`);
-  console.log('  npm link azox   # while Azox is not published yet');
-  console.log('  azox dev');
+  console.log('  npm install');
+  console.log('  npx azox dev');
 }
 
 function projectPackageJson(name) {
@@ -71,6 +71,7 @@ function projectPackageJson(name) {
       private: true,
       type: 'module',
       scripts: {
+        dev: 'azox dev',
         build: 'azox compile',
       },
       devDependencies: {
