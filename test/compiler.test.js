@@ -51,6 +51,24 @@ test('on: attributes become event listeners, not attributes', () => {
 // Path rewriting belongs to the build, which knows where files land;
 // the compiler only offers the hook. The real rebasing is covered in
 // build-api.test.js.
+// createTextNode takes text, not markup. If an entity reached it
+// undecoded, the browser would show "&lt;" where the server rendered
+// "<" — the page would visibly change the moment it hydrated.
+test('entities in static text are decoded for createTextNode', () => {
+  const code = compile('<p>&lt;tag&gt;</p>');
+  assert.match(code, /createTextNode\("<tag>"\)/);
+});
+
+test('a <text> block reaches createTextNode verbatim', () => {
+  const code = compile('<pre><text><button>{x}</button></text></pre>');
+  assert.match(code, /createTextNode\("<button>\{x\}<\/button>"\)/);
+});
+
+test('a <text> block creates no effect, since it is not dynamic', () => {
+  const code = compile('<pre><text>{count()}</text></pre>');
+  assert.doesNotMatch(code, /effect\(/);
+});
+
 test('applies the rewriteImports hook to the user script', () => {
   const code = compile(
     `<script>

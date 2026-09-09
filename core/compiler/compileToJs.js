@@ -80,10 +80,19 @@ function appendChildren(parentVar, children, statements, fallbackVar) {
   }
 }
 
+// createTextNode takes text, not markup, so an entity the author
+// wrote in static markup has to be decoded here — otherwise the
+// browser would show a literal "&lt;" where the server rendered "<",
+// and the page would visibly change on hydration. Content from a
+// <text> block is already literal and passes through untouched.
+const textValue = (part) => (part.kind === 'literal' ? part.value : decodeEntities(part.value));
+
 function emitText(node, statements, fallbackVar) {
-  // Purely static text: one text node, no effect needed.
-  if (node.parts.every((p) => p.kind === 'static')) {
-    const value = node.parts.map((p) => p.value).join('');
+  const isFixed = (part) => part.kind === 'static' || part.kind === 'literal';
+
+  // Nothing dynamic: one text node, no effect needed.
+  if (node.parts.every(isFixed)) {
+    const value = node.parts.map(textValue).join('');
     const varName = nextId();
     statements.push(`const ${varName} = document.createTextNode(${JSON.stringify(value)});`);
     return varName;
@@ -93,10 +102,23 @@ function emitText(node, statements, fallbackVar) {
   const varName = nextId();
   statements.push(`const ${varName} = document.createTextNode('');`);
   const expr = node.parts
-    .map((p) => (p.kind === 'static' ? JSON.stringify(p.value) : `String(${p.expr})`))
+    .map((part) => (isFixed(part) ? JSON.stringify(textValue(part)) : `String(${part.expr})`))
     .join(' + ');
   statements.push(`effect(() => { ${varName}.data = ${expr}; });`);
   return varName;
+}
+
+// The five entities that matter for text content. Numeric forms are
+// handled too, since documentation snippets tend to use them.
+function decodeEntities(text) {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 function emitAttr(varName, key, attr, statements) {

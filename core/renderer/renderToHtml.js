@@ -22,9 +22,7 @@ function renderNode(node, scope) {
   }
 
   if (node.type === 'text') {
-    return node.parts
-      .map((part) => (part.kind === 'static' ? escapeHtml(part.value) : escapeHtml(String(evalExpr(part.expr, scope)))))
-      .join('');
+    return node.parts.map((part) => renderTextPart(part, scope)).join('');
   }
 
   const attrs = Object.entries(node.attrs)
@@ -39,6 +37,19 @@ function renderNode(node, scope) {
 
   const inner = node.children.map((child) => renderNode(child, scope)).join('');
   return `<${node.name}${attrs}>${inner}</${node.name}>`;
+}
+
+// Three kinds of text, three rules:
+//   static  — markup the author wrote, so an entity they typed
+//             (&lt;) is meant to stay an entity. Passed through.
+//   literal — content of a <text> block, meant to appear exactly as
+//             written, so it is escaped into entities.
+//   expr    — data, which is where untrusted content could enter.
+//             Always escaped.
+function renderTextPart(part, scope) {
+  if (part.kind === 'static') return part.value;
+  if (part.kind === 'literal') return escapeHtml(part.value);
+  return escapeHtml(String(evalExpr(part.expr, scope)));
 }
 
 function evalExpr(expr, scope) {

@@ -19,7 +19,17 @@ const isComponentName = (name) => /^[A-Z]/.test(name);
 export function parseAzox(source) {
   const scriptMatch = source.match(/<script>([\s\S]*?)<\/script>/);
   const script = scriptMatch ? scriptMatch[1].trim() : '';
-  const template = source.replace(/<script>[\s\S]*?<\/script>/, '').trim();
+
+  // An optional <head> block is copied into the document head
+  // verbatim: stylesheets, meta tags, fonts. It is markup for the
+  // document, not for the page body, so it skips the AST entirely.
+  const headMatch = source.match(/<head>([\s\S]*?)<\/head>/);
+  const head = headMatch ? headMatch[1].trim() : '';
+
+  const template = source
+    .replace(/<script>[\s\S]*?<\/script>/, '')
+    .replace(/<head>[\s\S]*?<\/head>/, '')
+    .trim();
 
   const tokens = tokenize(template);
   const { node, rest } = parseNode(tokens);
@@ -29,6 +39,7 @@ export function parseAzox(source) {
 
   return {
     script,
+    head,
     markup: node,
     components: parseComponentImports(script),
     props: parsePropNames(script),
@@ -69,6 +80,18 @@ function tokenize(html) {
 
   while (i < html.length) {
     if (html[i] === '<') {
+      // <text> holds literal content: no tags, no {interpolation}.
+      // Without it there is no way to show markup or braces on a
+      // page, which documentation for this framework obviously needs.
+      if (html.startsWith('<text>', i)) {
+        const close = html.indexOf('</text>', i);
+        if (close === -1) throw new ParseError('Azox parse error: <text> is never closed');
+
+        tokens.push({ type: 'raw', value: html.slice(i + '<text>'.length, close) });
+        i = close + '</text>'.length;
+        continue;
+      }
+
       const isClose = html[i + 1] === '/';
       const end = findTagEnd(html, i);
       const raw = html.slice(i + (isClose ? 2 : 1), end).trim();
@@ -256,6 +279,11 @@ function parseNode(tokens) {
   const [token, ...rest] = tokens;
 
   if (!token) return { node: null, rest: [] };
+
+  // Literal content from <text>: one static part, never interpolated.
+  if (token.type === 'raw') {
+    return { node: { type: 'text', parts: [{ kind: 'literal', value: token.value }] }, rest };
+  }
 
   if (token.type === 'text') {
     return { node: { type: 'text', parts: splitInterpolation(token.value) }, rest };

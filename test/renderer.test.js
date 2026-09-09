@@ -37,6 +37,24 @@ test('renders void elements without a closing tag', () => {
   assert.equal(render('<div><br></div>'), '<div><br></div>');
 });
 
+test('a <text> block renders its content literally', () => {
+  const html = render('<pre><text><button on:click={go}>Hi</button></text></pre>');
+  assert.equal(html, '<pre>&lt;button on:click={go}&gt;Hi&lt;/button&gt;</pre>');
+});
+
+test('a <text> block does not interpolate braces', () => {
+  const html = render('<p><text>{count()}</text></p>', { count: () => 99 });
+  assert.equal(html, '<p>{count()}</p>', 'the expression must not be evaluated');
+});
+
+test('an entity written in static markup is not double-escaped', () => {
+  assert.equal(render('<p>&lt;tag&gt;</p>'), '<p>&lt;tag&gt;</p>');
+});
+
+test('an unclosed <text> block is reported', () => {
+  assert.throws(() => parseAzox('<p><text>oops</p>'), /<text> is never closed/);
+});
+
 test('escapes HTML in interpolated values', () => {
   const html = render('<p>{value()}</p>', { value: () => '<script>alert(1)</script>' });
   assert.equal(html, '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>');

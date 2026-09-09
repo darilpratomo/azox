@@ -1,0 +1,13 @@
+<footer class="footer">
+  <div class="container footer-inner">
+    <p style="margin:0">
+      Azox — The Sound of Future Web. MIT licensed.
+    </p>
+    <div class="footer-links">
+      <a href="/docs">Docs</a>
+      <a href="/playground">Playground</a>
+      <a href="https://github.com/darilpratomo/azox">GitHub</a>
+      <a href="https://www.npmjs.com/package/azoxjs">npm</a>
+    </div>
+  </div>
+</footer>

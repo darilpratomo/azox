@@ -1,0 +1,35 @@
+<script>
+  // `current` is the page's own url, used to mark the active link.
+  // Components take props and render markup, so the caller decides
+  // which entry is current.
+  const { current } = props();
+</script>
+
+<aside class="sidebar">
+  <div class="sidebar-group">
+    <p class="sidebar-title">Start here</p>
+    <ul>
+      <li><a href="/docs" class={current === '/docs' ? 'is-active' : ''}>Getting started</a></li>
+      <li><a href="/docs/reactivity" class={current === '/docs/reactivity' ? 'is-active' : ''}>Reactivity</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <p class="sidebar-title">Writing pages</p>
+    <ul>
+      <li><a href="/docs/syntax" class={current === '/docs/syntax' ? 'is-active' : ''}>Template syntax</a></li>
+      <li><a href="/docs/components" class={current === '/docs/components' ? 'is-active' : ''}>Components</a></li>
+      <li><a href="/docs/routing" class={current === '/docs/routing' ? 'is-active' : ''}>Routing</a></li>
+      <li><a href="/docs/styling" class={current === '/docs/styling' ? 'is-active' : ''}>Styling & assets</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <p class="sidebar-title">Reference</p>
+    <ul>
+      <li><a href="/docs/cli" class={current === '/docs/cli' ? 'is-active' : ''}>CLI</a></li>
+      <li><a href="/docs/deploy" class={current === '/docs/deploy' ? 'is-active' : ''}>Deployment</a></li>
+      <li><a href="/docs/limitations" class={current === '/docs/limitations' ? 'is-active' : ''}>Limitations</a></li>
+    </ul>
+  </div>
+</aside>

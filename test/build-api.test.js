@@ -202,6 +202,79 @@ test('buildPage accepts a url as well as a file name', () => {
   assert.equal(result.url, '/about');
 });
 
+test('a page <head> block reaches the document head', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-head-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    writeFileSync(
+      join(project, 'pages/index.azox'),
+      `<head>
+  <title>My Page</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<main>hi</main>`
+    );
+
+    const [result] = buildAll(project);
+    const html = readFileSync(result.htmlPath, 'utf8');
+
+    assert.match(html, /<title>My Page<\/title>/);
+    assert.match(html, /<link rel="stylesheet" href="\/style\.css" \/>/);
+    assert.doesNotMatch(html, /<head>[\s\S]*<head>/, 'must not nest a second head');
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('a page without a <head> still gets a title from the project name', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-nohead-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    writeFileSync(join(project, 'package.json'), JSON.stringify({ name: 'fallback-name' }));
+    writeFileSync(join(project, 'pages/index.azox'), '<main>hi</main>');
+
+    const [result] = buildAll(project);
+    assert.match(readFileSync(result.htmlPath, 'utf8'), /<title>fallback-name<\/title>/);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('public/ is copied to the build root, including subdirectories', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-public-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    mkdirSync(join(project, 'public/fonts'), { recursive: true });
+    writeFileSync(join(project, 'pages/index.azox'), '<main>hi</main>');
+    writeFileSync(join(project, 'public/style.css'), 'body{}');
+    writeFileSync(join(project, 'public/fonts/font.woff2'), 'binary');
+
+    buildAll(project);
+
+    assert.ok(existsSync(join(project, '.azox/build/style.css')));
+    assert.ok(existsSync(join(project, '.azox/build/fonts/font.woff2')));
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('a project without public/ builds fine', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-nopublic-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    writeFileSync(join(project, 'pages/index.azox'), '<main>hi</main>');
+
+    assert.doesNotThrow(() => buildAll(project));
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
 test('a parse error surfaces with the offending tag', () => {
   const broken = mkdtempSync(join(tmpdir(), 'azox-broken-'));
 

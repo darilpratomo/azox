@@ -3,8 +3,15 @@
 // result. `azox compile` runs it once; `azox dev` runs it on every
 // change, so it returns data rather than printing.
 
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
-import { resolve, basename, relative, dirname } from 'node:path';
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  copyFileSync,
+  existsSync,
+  readdirSync,
+} from 'node:fs';
+import { resolve, basename, relative, dirname, join } from 'node:path';
 
 import { parseAzox } from './compiler/parser.js';
 import { resolveComponents } from './compiler/resolveComponents.js';
@@ -22,6 +29,7 @@ import { BuildError } from './buildError.js';
 const RUNTIME_FILENAME = 'azox-runtime.js';
 
 export const PAGES_DIR = 'pages';
+export const PUBLIC_DIR = 'public';
 export const BUILD_DIR = '.azox/build';
 
 export { BuildError };
@@ -79,7 +87,7 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
   const runtimePath = resolve(buildRoot, RUNTIME_FILENAME);
   copyFileSync(resolve(ROOT_DIR, 'core/reactivity/signal.js'), runtimePath);
 
-  let document = wrapDocument(html, projectTitle(projectDir));
+  let document = wrapDocument(html, projectTitle(projectDir), ast.head);
   if (transformHtml) document = transformHtml(document);
 
   const htmlPath = resolve(buildRoot, route.htmlPath);
@@ -97,7 +105,42 @@ export function buildAll(projectDir, options) {
     );
   }
 
-  return routes.map((route) => buildRoute(projectDir, route, options));
+  const results = routes.map((route) => buildRoute(projectDir, route, options));
+  copyPublicAssets(projectDir);
+
+  return results;
+}
+
+// Everything in public/ is copied to the build root untouched, so a
+// stylesheet, font or image is referenced by the same path in source
+// and in the built site: public/style.css -> /style.css.
+export function copyPublicAssets(projectDir) {
+  const publicDir = resolve(projectDir, PUBLIC_DIR);
+  if (!existsSync(publicDir)) return [];
+
+  const buildRoot = resolve(projectDir, BUILD_DIR);
+  const copied = [];
+
+  const walk = (dir, relativeDir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue;
+
+      const from = join(dir, entry.name);
+      const to = join(buildRoot, relativeDir, entry.name);
+
+      if (entry.isDirectory()) {
+        mkdirSync(to, { recursive: true });
+        walk(from, join(relativeDir, entry.name));
+      } else {
+        mkdirSync(dirname(to), { recursive: true });
+        copyFileSync(from, to);
+        copied.push(to);
+      }
+    }
+  };
+
+  walk(publicDir, '');
+  return copied;
 }
 
 // Builds a single page by route name or URL.
@@ -212,20 +255,30 @@ function declaredNames(script) {
 
 // The client module sits next to the page's index.html, so the src is
 // the same for every route regardless of how deep it is.
-function wrapDocument(bodyHtml, title) {
+// A page's own <head> block wins over the fallback title, so a page
+// can set its own <title>, stylesheets and meta tags.
+function wrapDocument(bodyHtml, title, head = '') {
+  const hasOwnTitle = /<title>/i.test(head);
+
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(title)}</title>
-</head>
+${hasOwnTitle ? '' : `  <title>${escapeHtml(title)}</title>\n`}${head ? indent(head) + '\n' : ''}</head>
 <body>
 <div data-azox-root>${bodyHtml}</div>
 <script type="module" src="./page.client.js"></script>
 </body>
 </html>
 `;
+}
+
+function indent(block) {
+  return block
+    .split('\n')
+    .map((line) => (line.trim() ? `  ${line.trim()}` : line))
+    .join('\n');
 }
 
 function escapeHtml(str) {

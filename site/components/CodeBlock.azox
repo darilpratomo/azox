@@ -1,0 +1,14 @@
+<script>
+  // `label` names the file or shell the snippet belongs to. The code
+  // itself is passed as children so it can be written as literal
+  // markup rather than squeezed into an attribute.
+  const { label } = props();
+</script>
+
+<div class="code">
+  <div class="code-head">
+    <span>{label}</span>
+    <button class="copy-btn" data-copy>Copy</button>
+  </div>
+  <pre><slot /></pre>
+</div>
