@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { parseAzox } from '../core/compiler/parser.js';
 import { resolveComponents, ComponentError } from '../core/compiler/resolveComponents.js';
 import { createNodeResolver } from '../core/nodeResolver.js';
+import { compileToModule } from '../core/compiler/compileToJs.js';
 import { renderToHtml } from '../core/renderer/renderToHtml.js';
 import { BuildError } from '../core/buildError.js';
 
@@ -233,6 +234,98 @@ test('a component with logic beyond props() is rejected', () => {
 <main><Stateful /></main>`),
     /does not support/
   );
+});
+
+// Regression: an attribute expression that becomes constant once the
+// caller's props are substituted was still wrapped in an effect. That
+// made a page built only from such components look reactive, so it
+// was hydrated — and hydration clears and rebuilds the DOM, which
+// destroyed elements other scripts on the page were holding.
+test('an attribute expression that folds to a constant creates no effect', () => {
+  writeComponent(
+    'NavLink.azox',
+    `<script>
+  const { current } = props();
+</script>
+<a href="/docs" class={current === 'docs' ? 'is-active' : ''}>Docs</a>`
+  );
+
+  const source = `<script>
+  import NavLink from '../components/NavLink.azox';
+</script>
+<main><NavLink current="docs" /></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
+
+  assert.match(js, /setAttribute\("class", "is-active"\)/, 'the value should be folded');
+  assert.doesNotMatch(js, /effect\(/, 'a constant needs no effect');
+  assert.doesNotMatch(js, /innerHTML/, 'and the page should stay static');
+});
+
+test('folding picks the other branch when the prop differs', () => {
+  const source = `<script>
+  import NavLink from '../components/NavLink.azox';
+</script>
+<main><NavLink current="other" /></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
+
+  assert.match(js, /setAttribute\("class", ""\)/);
+});
+
+test('a genuinely dynamic attribute is still reactive', () => {
+  writeComponent(
+    'Toggle.azox',
+    `<script>
+  const { on } = props();
+</script>
+<a class={on() ? 'yes' : 'no'}>x</a>`
+  );
+
+  const source = `<script>
+  import Toggle from '../components/Toggle.azox';
+</script>
+<main><Toggle on={flag} /></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
+
+  assert.match(js, /effect\(/, 'a call must not be folded away');
+});
+
+test('folding never runs a function call', () => {
+  writeComponent(
+    'Danger.azox',
+    `<script>
+  const { value } = props();
+</script>
+<a class={value}>x</a>`
+  );
+
+  const source = `<script>
+  import Danger from '../components/Danger.azox';
+</script>
+<main><Danger value={sideEffect()} /></main>`;
+
+  const pagePath = join(dir, 'pages/index.azox');
+  writeFileSync(pagePath, source);
+
+  const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
+  const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
+
+  assert.match(js, /sideEffect\(\)/, 'the call must survive to runtime');
+  assert.match(js, /effect\(/);
 });
 
 test('component errors are BuildErrors, so the CLI reports them plainly', () => {

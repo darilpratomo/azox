@@ -1,5 +1,7 @@
 <script>
-  const { version } = props();
+  // `current` marks the active link. Components take props and render
+  // markup, so the page decides which entry is current.
+  const { version, current } = props();
 </script>
 
 <nav class="nav">
@@ -9,10 +11,12 @@
       <span class="brand-version">v{version}</span>
     </a>
     <div class="nav-links">
-      <a href="/docs">Docs</a>
-      <a href="/playground">Playground</a>
+      <a href="/docs" class={current === 'docs' ? 'is-active' : ''}>Docs</a>
+      <a href="/learn" class={current === 'learn' ? 'is-active' : ''}>Tutorial</a>
+      <a href="/templates" class={current === 'templates' ? 'is-active' : ''}>Templates</a>
+      <a href="/playground" class={current === 'playground' ? 'is-active' : ''}>Playground</a>
+      <a href="/why" class={current === 'why' ? 'is-active' : ''}>Why</a>
       <a href="https://github.com/darilpratomo/azox">GitHub</a>
-      <a href="https://www.npmjs.com/package/azoxjs">npm</a>
     </div>
   </div>
 </nav>

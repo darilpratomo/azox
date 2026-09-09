@@ -53,6 +53,9 @@ document.addEventListener('click', (event) => {
   if (source) copyText(source, button);
 });
 
+// Scroll-in animation is handled entirely in CSS with a scroll-driven
+// animation, so nothing here needs to run for the page to be readable.
+
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-download]');
   if (!button) return;

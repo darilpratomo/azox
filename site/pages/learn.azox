@@ -1,0 +1,368 @@
+<head>
+  <title>Tutorial — Build a site with Azox</title>
+  <meta name="description" content="From an empty directory to a deployed site, one step at a time." />
+  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../components/Nav.azox';
+  import Footer from '../components/Footer.azox';
+  import CodeBlock from '../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" current="learn" />
+
+  <div class="container" style="padding-block: 3rem 1rem">
+    <div class="narrow">
+      <h1 class="rise-in">Build a site with Azox</h1>
+      <p class="lede rise-in delay-1">
+        A link-sharing page, built from an empty directory and deployed at the
+        end. Around twenty minutes. Every step explains why, not just what.
+      </p>
+      <p class="muted rise-in delay-2">
+        You need Node 18 or newer. Nothing else.
+      </p>
+    </div>
+  </div>
+
+  <section class="section container reveal" style="padding-top:1rem">
+    <div class="narrow">
+      <ol class="steps">
+        <li class="step">
+          <h3>Create the project</h3>
+          <p>
+            The scaffold gives you two pages and a component, so routing and
+            composition are visible from the start.
+          </p>
+
+          <CodeBlock label="terminal"><text>npx azoxjs create linkbox
+cd linkbox
+npm install</text></CodeBlock>
+
+          <p>Start the dev server and leave it running:</p>
+
+          <CodeBlock label="terminal"><text>npm run dev</text></CodeBlock>
+
+          <p>
+            Open <code>http://localhost:4321</code>. Every save rebuilds and
+            reloads the page.
+          </p>
+        </li>
+
+        <li class="step">
+          <h3>Understand what you were given</h3>
+          <p>
+            Look at <code>pages/index.azox</code>. Three parts, all optional
+            except the markup.
+          </p>
+
+          <CodeBlock label="pages/index.azox"><text><head>
+  <!-- copied into the document head -->
+</head>
+
+<script>
+  // imports and state
+</script>
+
+<main>
+  <!-- the markup: one root element -->
+</main></text></CodeBlock>
+
+          <div class="note">
+            <p>
+              The <code>&lt;script&gt;</code> block runs once when the page is
+              built, not on every update. There is no render function, so
+              there is no "runs on every render" to worry about.
+            </p>
+          </div>
+        </li>
+
+        <li class="step">
+          <h3>Replace the page</h3>
+          <p>
+            Start with static markup. No state yet — it is worth seeing that a
+            page with nothing reactive ships no update code at all.
+          </p>
+
+          <CodeBlock label="pages/index.azox"><text><head>
+  <title>Linkbox</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<main class="page">
+  <h1>Linkbox</h1>
+  <p class="tagline">Somewhere to keep good links.</p>
+
+  <ul class="links">
+    <li><a href="https://azox.dev">Azox</a></li>
+    <li><a href="https://developer.mozilla.org">MDN</a></li>
+  </ul>
+</main></text></CodeBlock>
+
+          <p>
+            Save. The page reloads. Nothing is styled yet — that is next.
+          </p>
+        </li>
+
+        <li class="step">
+          <h3>Add styles</h3>
+          <p>
+            Azox has no CSS pipeline on purpose. Files in
+            <code>public/</code> are copied to the build root and served at
+            the same path, so <code>public/style.css</code> is
+            <code>/style.css</code>.
+          </p>
+
+          <CodeBlock label="public/style.css"><text>:root {
+  color-scheme: dark;
+  --bg: #0d0d12;
+  --text: #f0f0f5;
+  --dim: #9a9ab0;
+  --accent: #6ee7f0;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 system-ui, sans-serif;
+}
+
+.page {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+h1 { font-size: 2.2rem; margin: 0 0 0.3rem; }
+.tagline { color: var(--dim); margin: 0 0 2.5rem; }
+
+.links { list-style: none; padding: 0; display: grid; gap: 0.5rem; }
+.links a {
+  display: block;
+  padding: 0.9rem 1.1rem;
+  background: #16161f;
+  border: 1px solid #26263a;
+  border-radius: 10px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.links a:hover { border-color: var(--accent); }</text></CodeBlock>
+        </li>
+
+        <li class="step">
+          <h3>Make something reactive</h3>
+          <p>
+            Now add state. A <code>signal</code> holds a value; reading it in
+            markup binds that spot in the DOM to it.
+          </p>
+
+          <CodeBlock label="pages/index.azox"><text><script>
+  import { signal } from 'azox/reactivity';
+
+  const clicks = signal(0);
+</script>
+
+<main class="page">
+  <h1>Linkbox</h1>
+  <p class="tagline">Somewhere to keep good links.</p>
+
+  <ul class="links">
+    <li><a href="https://azox.dev">Azox</a></li>
+    <li><a href="https://developer.mozilla.org">MDN</a></li>
+  </ul>
+
+  <p class="count">Visited {clicks()} times</p>
+
+  <button on:click={() => clicks.set(clicks() + 1)}>
+    I clicked one
+  </button>
+</main></text></CodeBlock>
+
+          <div class="note note-good">
+            <p>
+              Only the text inside <code>.count</code> updates when you click.
+              The heading, the tagline and the links are never touched again
+              after the page loads — there is no code that could touch them.
+            </p>
+          </div>
+        </li>
+
+        <li class="step">
+          <h3>Extract a component</h3>
+          <p>
+            The two links are the same shape. A component declares what it
+            accepts with <code>props()</code>.
+          </p>
+
+          <CodeBlock label="components/Link.azox"><text><script>
+  const { href, label, note } = props();
+</script>
+
+<li class="link">
+  <a href={href}>
+    <strong>{label}</strong>
+    <span class="note">{note}</span>
+  </a>
+</li></text></CodeBlock>
+
+          <p>Use it with a capitalised tag:</p>
+
+          <CodeBlock label="pages/index.azox"><text><script>
+  import Link from '../components/Link.azox';
+  import { signal } from 'azox/reactivity';
+
+  const clicks = signal(0);
+</script>
+
+<main class="page">
+  <h1>Linkbox</h1>
+
+  <ul class="links">
+    <Link
+      href="https://azox.dev"
+      label="Azox"
+      note="The framework this is built with"
+    />
+    <Link
+      href="https://developer.mozilla.org"
+      label="MDN"
+      note="Web documentation"
+    />
+  </ul>
+</main></text></CodeBlock>
+
+          <div class="note note-warn">
+            <p>
+              Pass a prop the component never declared and the build stops
+              with the name of the offending prop. Silently dropping it would
+              hide a typo.
+            </p>
+          </div>
+        </li>
+
+        <li class="step">
+          <h3>Add a second page</h3>
+          <p>
+            Create <code>pages/about.azox</code>. It becomes
+            <code>/about</code> — the file layout is the routing table, and
+            there is nothing to register.
+          </p>
+
+          <CodeBlock label="pages/about.azox"><text><head>
+  <title>About — Linkbox</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<main class="page">
+  <h1>About</h1>
+  <p class="tagline">
+    Built with Azox, which compiles this page into HTML
+    and a small module that wires up the bindings.
+  </p>
+  <p><a href="/">Back home</a></p>
+</main></text></CodeBlock>
+
+          <p>
+            Link to it from the home page with a plain
+            <code>&lt;a href="/about"&gt;</code>. There is no client-side
+            router in this version, so each navigation is a real page load —
+            which also means each page arrives as server-rendered HTML.
+          </p>
+        </li>
+
+        <li class="step">
+          <h3>Check your work</h3>
+          <p>
+            <code>doctor</code> parses every page and resolves every component
+            reference, so a mistake surfaces before you deploy.
+          </p>
+
+          <CodeBlock label="terminal"><text>npx azox doctor</text></CodeBlock>
+
+          <CodeBlock label="output"><text>Azox Framework v0.1.0 - The Sound of Future Web
+
+  ✓ Node 22.11.0
+  ✓ Azox v0.1.0
+  ✓ pages/ (2 pages)
+  ✓ /  (pages/index.azox)
+  ✓ /about  (pages/about.azox)
+
+Everything looks good.</text></CodeBlock>
+        </li>
+
+        <li class="step">
+          <h3>Build it</h3>
+
+          <CodeBlock label="terminal"><text>npm run build</text></CodeBlock>
+
+          <p>
+            Look at what came out. Each route is a directory with an
+            <code>index.html</code>, which is what makes clean URLs work
+            everywhere without rewrite rules.
+          </p>
+
+          <CodeBlock label=".azox/build/"><text>index.html            /
+page.client.js
+azox-runtime.js       shared by every page
+about/
+├── index.html        /about
+└── page.client.js
+style.css             copied from public/</text></CodeBlock>
+
+          <p>Serve it locally to check:</p>
+
+          <CodeBlock label="terminal"><text>cd .azox/build
+python3 -m http.server 4321</text></CodeBlock>
+        </li>
+
+        <li class="step">
+          <h3>Deploy</h3>
+          <p>
+            The output is a plain static site, so any host works. Two
+            settings, whichever you use:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Setting</th><th>Value</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Build command</td><td><code>npm run build</code></td></tr>
+                <tr><td>Output directory</td><td><code>.azox/build</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            See <a href="/docs/deploy">deployment</a> for Vercel, Netlify,
+            Cloudflare Pages and GitHub Pages specifics.
+          </p>
+        </li>
+      </ol>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>Pages are markup with optional <code>&lt;head&gt;</code> and <code>&lt;script&gt;</code> blocks</li>
+        <li>A <code>signal</code> binds one spot in the DOM to one value</li>
+        <li>Components declare props and are inlined at build time</li>
+        <li>The file layout is the routing table</li>
+        <li><code>public/</code> is copied as-is</li>
+        <li>The build is a static site that runs anywhere</li>
+      </ul>
+
+      <h2>Where to go next</h2>
+      <ul>
+        <li><a href="/templates">Templates</a> — complete sites to start from</li>
+        <li><a href="/docs/limitations">Limitations</a> — what Azox cannot do yet, before you commit to it</li>
+        <li><a href="/playground">Playground</a> — try ideas without creating a project</li>
+      </ul>
+    </div>
+  </section>
+
+  <Footer />
+</div>

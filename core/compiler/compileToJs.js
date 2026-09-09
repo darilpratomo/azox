@@ -107,8 +107,25 @@ function appendChildren(parentVar, children, statements, fallbackVar) {
 // <text> block is already literal and passes through untouched.
 const textValue = (part) => (part.kind === 'literal' ? part.value : decodeEntities(part.value));
 
+// `{'{'}` is how a page writes a literal brace, since bare braces
+// start an expression. It is a constant, so it should not produce an
+// effect — a page whose only "dynamic" content is escaped punctuation
+// would otherwise be treated as reactive and hydrated needlessly.
+function foldLiteralParts(parts) {
+  return parts.map((part) => {
+    if (part.kind !== 'expr') return part;
+
+    const match = part.expr.trim().match(/^'((?:[^'\\]|\\.)*)'$|^"((?:[^"\\]|\\.)*)"$/);
+    if (!match) return part;
+
+    const raw = match[1] ?? match[2];
+    return { kind: 'literal', value: raw.replace(/\\(['"\\])/g, '$1') };
+  });
+}
+
 function emitText(node, statements, fallbackVar) {
   const isFixed = (part) => part.kind === 'static' || part.kind === 'literal';
+  node = { ...node, parts: foldLiteralParts(node.parts) };
 
   // Nothing dynamic: one text node, no effect needed.
   if (node.parts.every(isFixed)) {

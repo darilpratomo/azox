@@ -1,0 +1,255 @@
+<head>
+  <title>Why Azox — the case against the Virtual DOM</title>
+  <meta name="description" content="Why fine-grained signals beat re-rendering and diffing, and what Azox gives up to get there." />
+  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../components/Nav.azox';
+  import Footer from '../components/Footer.azox';
+  import CodeBlock from '../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" current="why" />
+
+  <div class="container" style="padding-block: 3rem 1rem">
+    <div class="narrow">
+      <h1 class="rise-in">Why Azox</h1>
+      <p class="lede rise-in delay-1">
+        Every framework decides how to get a change in your data onto the
+        screen. That single decision shapes everything else. Here is the one
+        Azox made, and what it costs.
+      </p>
+    </div>
+  </div>
+
+  <section class="section container reveal" style="padding-top:1rem">
+    <div class="narrow">
+      <h2 style="margin-top:0">The problem every framework solves</h2>
+      <p>
+        You change a number. Somewhere on screen, that number is displayed.
+        The framework's job is to make the screen agree with the data.
+      </p>
+      <p>
+        Sounds trivial. It is not, because the framework does not know
+        <em>where</em> on screen that number appears — you wrote markup, not
+        instructions. So it has to work it out. The three main answers are
+        genuinely different, and each has a cost.
+      </p>
+
+      <h2>Answer one: re-run and compare</h2>
+      <p>
+        This is React's approach, and the most widely used. When state
+        changes, the framework re-runs your component function, gets a fresh
+        description of what the UI should look like, and compares it against
+        the previous description to find the differences.
+      </p>
+
+      <CodeBlock label="the cycle"><text>state changes
+      ↓
+component function runs again
+      ↓
+returns a new tree of elements
+      ↓
+framework compares old tree vs new tree
+      ↓
+applies the differences to the real DOM</text></CodeBlock>
+
+      <p>
+        It works, and it is easy to reason about: your UI is a function of
+        your state. But look at the middle of that list. To update one number,
+        the framework rebuilt a description of everything around it and then
+        did work to discover that only the number changed.
+      </p>
+
+      <div class="note note-warn">
+        <p>
+          This is where <code>useMemo</code>, <code>useCallback</code>,
+          <code>React.memo</code> and dependency arrays come from. They are not
+          features so much as tools for telling the framework to skip work it
+          would otherwise do. That is a real cognitive cost.
+        </p>
+      </div>
+
+      <h2>Answer two: compile it away entirely</h2>
+      <p>
+        Svelte's original insight: a compiler can read your markup at build
+        time and see exactly which piece of the DOM depends on which variable.
+        Then it can generate direct instructions and skip the runtime
+        comparison completely.
+      </p>
+      <p>
+        This is much faster. The trade-off is that the compiler has to
+        statically understand your code, which gets harder the more dynamic
+        your code is.
+      </p>
+
+      <h2>Answer three: let the value carry its own subscribers</h2>
+      <p>
+        This is what Azox does, and what Solid and Svelte 5 also converged on.
+        Instead of the framework working out what depends on what, the value
+        itself keeps track.
+      </p>
+
+      <CodeBlock label="the mechanism"><text>const count = signal(0);
+
+// Reading count() inside an effect registers
+// that effect as a subscriber. The signal now
+// knows exactly who cares about it.
+
+effect(() => {
+  textNode.data = String(count());
+});
+
+// So on a write, there is nothing to work out.
+// The signal already holds the list.
+
+count.set(1);   // → runs that one effect</text></CodeBlock>
+
+      <p>
+        There is no tree, no comparison, and no re-run of anything but the
+        effects that actually read the value. The cost of an update is
+        proportional to how many things display that value — not to the size
+        of your component or your page.
+      </p>
+
+      <h2>What this looks like in your code</h2>
+
+      <div class="compare">
+        <CodeBlock label="re-run and compare"><text>function Profile({ user }) {
+  const [count, setCount] = useState(0);
+
+  // Recreated on every render, so it is
+  // wrapped to keep child components from
+  // re-rendering unnecessarily.
+  const onClick = useCallback(
+    () => setCount(c => c + 1),
+    []
+  );
+
+  // Recomputed on every render unless
+  // memoised.
+  const label = useMemo(
+    () => `${user.name}: ${count}`,
+    [user.name, count]
+  );
+
+  return <button onClick={onClick}>{label}</button>;
+}</text></CodeBlock>
+
+        <CodeBlock label="signals"><text><script>
+  import { signal, computed } from 'azox/reactivity';
+
+  const count = signal(0);
+
+  // Runs when count changes. Not on
+  // render, because there is no render.
+  const label = computed(
+    () => user.name + ': ' + count()
+  );
+</script>
+
+<!-- The handler is created once, when
+     this node is created. -->
+<button on:click={() => count.set(count() + 1)}>
+  {label()}
+</button></text></CodeBlock>
+      </div>
+
+      <p>
+        The right-hand version has no memoisation because there is nothing to
+        memoise. Nothing re-runs, so nothing needs to be prevented from
+        re-running.
+      </p>
+
+      <h2>Where components go</h2>
+      <p>
+        If components do not re-render, what are they? In Azox they are a
+        build-time unit of reuse and nothing more. A component is inlined into
+        whatever uses it, and by the time your code reaches the browser there
+        is no trace that it was ever a separate file.
+      </p>
+
+      <CodeBlock label="before and after"><text>components/Card.azox     →  inlined into the page
+pages/index.azox        →  one flat sequence of DOM calls
+
+// No component instance. No mount or unmount.
+// No props object allocated at runtime.
+// The output is what you would have written by hand.</text></CodeBlock>
+
+      <h2>What Azox gives up</h2>
+      <p>
+        A page that claims only advantages is selling something. Here is the
+        other side.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>You give up</th>
+              <th>Because</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Component-local state</td>
+              <td>Components are inlined, so state inside one would share the caller's scope</td>
+            </tr>
+            <tr>
+              <td>Loops and conditionals in markup</td>
+              <td>Not built yet — the largest gap, and the next thing to change</td>
+            </tr>
+            <tr>
+              <td>A large ecosystem</td>
+              <td>Azox is at v0.1.0. There are no plugins, no component libraries, no Stack Overflow answers</td>
+            </tr>
+            <tr>
+              <td>Client-side routing</td>
+              <td>Links are ordinary page loads in this version</td>
+            </tr>
+            <tr>
+              <td>Battle-tested edge cases</td>
+              <td>React has had a decade of production use finding them. Azox has months</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p>
+          <strong>Use Azox if</strong> you want to understand your whole
+          framework, you value a small dependency-free build, and you are
+          comfortable on early-stage software.
+        </p>
+        <p>
+          <strong>Do not use Azox if</strong> you need an ecosystem today, or
+          you are shipping something where an unfixed framework bug would be
+          expensive.
+        </p>
+      </div>
+
+      <h2>Why build it at all</h2>
+      <p>
+        Because the interesting part of a framework is the reactivity model,
+        and it is small enough to fit in your head. Azox's runtime is about
+        fifty lines. You can read all of it in a few minutes and know exactly
+        what happens when your data changes.
+      </p>
+      <p>
+        That is worth something on its own, whether or not you ship anything
+        with it.
+      </p>
+
+      <div class="hero-actions" style="margin-top:2.5rem">
+        <a class="btn btn-primary" href="/learn">Build something with it</a>
+        <a class="btn btn-ghost" href="/docs/reactivity">Read how it works</a>
+      </div>
+    </div>
+  </section>
+
+  <Footer />
+</div>

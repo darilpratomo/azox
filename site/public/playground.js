@@ -71,26 +71,13 @@ const PREVIEW_STYLES = `
   }
 `;
 
-// Azox hydrates by clearing its root and rebuilding it, so any node
-// captured before that runs is detached and dead. Wait for the
-// rebuilt DOM before looking anything up.
-async function waitForHydration() {
-  const isReady = () => document.querySelector('[data-editor="page"]');
-
-  if (isReady() && document.readyState === 'complete') {
-    // One more frame, in case hydration is still queued.
-    await new Promise((done) => requestAnimationFrame(done));
-  }
-
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if (isReady()) return;
-    await new Promise((done) => setTimeout(done, 20));
-  }
-
-  throw new Error('playground: the editors never appeared');
+// A module in <head> can start before <body> is parsed, so wait for
+// the document before looking anything up. This page has no bindings,
+// so Azox leaves its markup alone — once parsed, nothing replaces the
+// editors underneath us.
+if (document.readyState === 'loading') {
+  await new Promise((done) => document.addEventListener('DOMContentLoaded', done, { once: true }));
 }
-
-await waitForHydration();
 
 const els = {
   page: document.querySelector('[data-editor="page"]'),
@@ -101,6 +88,16 @@ const els = {
   tabs: document.querySelectorAll('[data-tab]'),
   panes: document.querySelectorAll('[data-pane]'),
 };
+
+// Loaded somewhere without the playground markup: stop here with a
+// clear message, rather than throwing on the first missing element
+// and reporting nothing about the cause.
+const missing = ['page', 'component', 'preview', 'error', 'output'].filter((key) => !els[key]);
+
+if (missing.length) {
+  console.warn(`playground: markup not found (missing ${missing.join(', ')}) — not starting`);
+  throw new Error('playground markup not present');
+}
 
 // The runtime is fetched once and inlined into the preview document,
 // so the iframe needs no network access of its own.

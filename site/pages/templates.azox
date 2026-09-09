@@ -1,0 +1,507 @@
+<head>
+  <title>Templates — Azox</title>
+  <meta name="description" content="Complete Azox sites to copy and adapt: a landing page, a portfolio, a blog and a dashboard." />
+  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../components/Nav.azox';
+  import Footer from '../components/Footer.azox';
+  import CodeBlock from '../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" current="templates" />
+
+  <div class="container" style="padding-block: 3rem 1rem">
+    <div class="narrow">
+      <h1 class="rise-in">Templates</h1>
+      <p class="lede rise-in delay-1">
+        Complete, working sites. Copy any file with the button on its header,
+        or download it. Each one is plain Azox with no dependencies beyond the
+        framework itself.
+      </p>
+    </div>
+  </div>
+
+  <section class="section container reveal" style="padding-top:1rem">
+    <p class="section-lede">
+      All four assume a project made with
+      <code>npx azoxjs create my-app</code>. Drop the files in and run
+      <code>npm run dev</code>.
+    </p>
+
+    <div class="grid">
+      <div class="card template-card">
+        <div class="template-preview">
+          <div class="wire">
+            <i class="accent half"></i>
+            <i class="tall"></i>
+            <i class="third"></i>
+            <div class="wire-row"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="template-body">
+          <h3>Landing page</h3>
+          <p>A hero, a feature grid and a call to action. Two files.</p>
+          <a class="card-more" href="#landing">Jump to code →</a>
+        </div>
+      </div>
+
+      <div class="card template-card">
+        <div class="template-preview">
+          <div class="wire">
+            <i class="accent third"></i>
+            <i class="half"></i>
+            <div class="wire-row"><i class="tall"></i><i class="tall"></i><i class="tall"></i></div>
+          </div>
+        </div>
+        <div class="template-body">
+          <h3>Portfolio</h3>
+          <p>An intro and a project list built from a reusable card.</p>
+          <a class="card-more" href="#portfolio">Jump to code →</a>
+        </div>
+      </div>
+
+      <div class="card template-card">
+        <div class="template-preview">
+          <div class="wire">
+            <i class="accent half"></i>
+            <i></i>
+            <i class="third"></i>
+            <i></i>
+            <i class="half"></i>
+          </div>
+        </div>
+        <div class="template-body">
+          <h3>Blog</h3>
+          <p>An index page and a post page, showing nested routing.</p>
+          <a class="card-more" href="#blog">Jump to code →</a>
+        </div>
+      </div>
+
+      <div class="card template-card">
+        <div class="template-preview">
+          <div class="wire">
+            <div class="wire-row"><i class="accent"></i><i></i><i></i></div>
+            <i class="tall"></i>
+            <div class="wire-row"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="template-body">
+          <h3>Dashboard</h3>
+          <p>Interactive stat tiles — the most reactive of the four.</p>
+          <a class="card-more" href="#dashboard">Jump to code →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container reveal" id="landing">
+    <div class="narrow">
+      <h2 style="margin-top:0">Landing page <span class="pill">2 files</span></h2>
+      <p class="muted">
+        Static apart from the copy button. Because nothing on the page is
+        reactive, Azox ships no update code for it at all.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><head>
+  <title>Product — a better way to ship</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<script>
+  import Feature from '../components/Feature.azox';
+</script>
+
+<main>
+  <header class="hero">
+    <p class="eyebrow">Now in beta</p>
+    <h1>Ship faster,<br />with less to carry</h1>
+    <p class="lede">
+      Everything you need, nothing you do not. Built for
+      teams who would rather read their tools than trust them.
+    </p>
+    <a class="btn" href="#features">See how it works</a>
+  </header>
+
+  <section id="features" class="features">
+    <Feature
+      title="Fast by default"
+      body="No configuration needed to get a good result."
+    />
+    <Feature
+      title="Small surface"
+      body="A handful of concepts, learnable in an afternoon."
+    />
+    <Feature
+      title="Yours to keep"
+      body="Plain output you can host anywhere, forever."
+    />
+  </section>
+
+  <footer class="foot">
+    <p>© 2026 Product. Built with Azox.</p>
+  </footer>
+</main></text></CodeBlock>
+
+      <CodeBlock label="components/Feature.azox"><text><script>
+  const { title, body } = props();
+</script>
+
+<article class="feature">
+  <h2>{title}</h2>
+  <p>{body}</p>
+</article></text></CodeBlock>
+
+      <CodeBlock label="public/style.css"><text>:root {
+  color-scheme: dark;
+  --bg: #0b0b10;
+  --card: #14141c;
+  --line: #24243a;
+  --text: #f2f2f7;
+  --dim: #9c9cb5;
+  --accent: #7dd3fc;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 system-ui, sans-serif;
+}
+
+main { max-width: 62rem; margin: 0 auto; padding: 0 1.5rem; }
+
+.hero { padding: 6rem 0 4rem; }
+.eyebrow {
+  display: inline-block;
+  font-size: 0.8rem;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  margin: 0 0 1.5rem;
+}
+h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.1; margin: 0 0 1rem; }
+.lede { color: var(--dim); font-size: 1.1rem; max-width: 46ch; }
+
+.btn {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: 0.8rem 1.4rem;
+  background: var(--accent);
+  color: #08080c;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.features {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  padding-bottom: 4rem;
+}
+
+.feature {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.feature h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+.feature p { color: var(--dim); margin: 0; font-size: 0.94rem; }
+
+.foot {
+  border-top: 1px solid var(--line);
+  padding: 2rem 0;
+  color: var(--dim);
+  font-size: 0.88rem;
+}</text></CodeBlock>
+    </div>
+  </section>
+
+  <section class="section container reveal" id="portfolio">
+    <div class="narrow">
+      <h2 style="margin-top:0">Portfolio <span class="pill">2 files</span></h2>
+      <p class="muted">
+        One component reused for every project. Change the list, not the
+        markup.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><head>
+  <title>Ada Lovelace — work</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<script>
+  import Project from '../components/Project.azox';
+</script>
+
+<main class="page">
+  <header>
+    <h1>Ada Lovelace</h1>
+    <p class="bio">
+      I build things for the web. Previously at the
+      Analytical Engine. Currently taking on work.
+    </p>
+    <p class="links">
+      <a href="mailto:ada@example.com">Email</a>
+      <a href="https://github.com">GitHub</a>
+    </p>
+  </header>
+
+  <section class="work">
+    <h2>Selected work</h2>
+
+    <Project
+      name="Notation"
+      year="2026"
+      body="A writing tool for people who think in outlines."
+      href="https://example.com/notation"
+    />
+    <Project
+      name="Fieldnote"
+      year="2025"
+      body="Offline-first notes for fieldwork, built for bad signal."
+      href="https://example.com/fieldnote"
+    />
+    <Project
+      name="Tempo"
+      year="2024"
+      body="A scheduling app that respects time zones properly."
+      href="https://example.com/tempo"
+    />
+  </section>
+</main></text></CodeBlock>
+
+      <CodeBlock label="components/Project.azox"><text><script>
+  const { name, year, body, href } = props();
+</script>
+
+<article class="project">
+  <div class="project-head">
+    <h3><a href={href}>{name}</a></h3>
+    <span class="year">{year}</span>
+  </div>
+  <p>{body}</p>
+</article></text></CodeBlock>
+
+      <CodeBlock label="public/style.css"><text>:root {
+  color-scheme: dark;
+  --bg: #0c0c11;
+  --line: #23232f;
+  --text: #f2f2f7;
+  --dim: #9a9ab2;
+  --accent: #c4b5fd;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.7 system-ui, sans-serif;
+}
+
+.page { max-width: 40rem; margin: 0 auto; padding: 5rem 1.5rem; }
+
+h1 { font-size: 2rem; margin: 0 0 0.75rem; }
+.bio { color: var(--dim); margin: 0 0 1rem; }
+.links a { color: var(--accent); margin-right: 1.25rem; }
+
+.work { margin-top: 4rem; }
+.work h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  margin-bottom: 1.5rem;
+}
+
+.project { padding: 1.5rem 0; border-top: 1px solid var(--line); }
+.project-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+.project h3 { margin: 0; font-size: 1.1rem; }
+.project h3 a { color: var(--text); text-decoration: none; }
+.project h3 a:hover { color: var(--accent); }
+.year { color: var(--dim); font-size: 0.85rem; }
+.project p { color: var(--dim); margin: 0.4rem 0 0; }</text></CodeBlock>
+    </div>
+  </section>
+
+  <section class="section container reveal" id="blog">
+    <div class="narrow">
+      <h2 style="margin-top:0">Blog <span class="pill">3 files</span></h2>
+      <p class="muted">
+        Shows nested routing: <code>pages/posts/first.azox</code> is served at
+        <code>/posts/first</code>.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><head>
+  <title>Notes</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<script>
+  import PostLink from '../components/PostLink.azox';
+</script>
+
+<main class="page">
+  <h1>Notes</h1>
+  <p class="sub">Occasional writing about building things.</p>
+
+  <ul class="posts">
+    <PostLink
+      href="/posts/first"
+      title="Why I stopped reaching for a framework"
+      date="March 2026"
+    />
+    <PostLink
+      href="/posts/second"
+      title="Reading your dependencies"
+      date="February 2026"
+    />
+  </ul>
+</main></text></CodeBlock>
+
+      <CodeBlock label="pages/posts/first.azox"><text><head>
+  <title>Why I stopped reaching for a framework</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<article class="page post">
+  <p class="date">March 2026</p>
+  <h1>Why I stopped reaching for a framework</h1>
+
+  <p>
+    The first thing I do on a new project used to be
+    installing something. Now I write the page first
+    and see what I actually miss.
+  </p>
+
+  <p>
+    Usually it is less than I expected.
+  </p>
+
+  <p class="back"><a href="/">← All notes</a></p>
+</article></text></CodeBlock>
+
+      <CodeBlock label="components/PostLink.azox"><text><script>
+  const { href, title, date } = props();
+</script>
+
+<li class="post-link">
+  <a href={href}>
+    <span class="post-title">{title}</span>
+    <span class="post-date">{date}</span>
+  </a>
+</li></text></CodeBlock>
+    </div>
+  </section>
+
+  <section class="section container reveal" id="dashboard">
+    <div class="narrow">
+      <h2 style="margin-top:0">Dashboard <span class="pill">2 files</span></h2>
+      <p class="muted">
+        The most reactive of the four. Each stat is bound to its own signal,
+        so pressing a button updates one number and nothing else.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<script>
+  import Stat from '../components/Stat.azox';
+  import { signal, computed } from 'azox/reactivity';
+
+  const visitors = signal(1240);
+  const signups = signal(86);
+
+  // Recomputed only when one of its sources changes.
+  const rate = computed(
+    () => ((signups() / visitors()) * 100).toFixed(1) + '%'
+  );
+</script>
+
+<main class="page">
+  <header class="bar">
+    <h1>Overview</h1>
+    <button
+      class="btn"
+      on:click={() => {
+        visitors.set(visitors() + 37);
+        signups.set(signups() + 2);
+      }}
+    >
+      Simulate traffic
+    </button>
+  </header>
+
+  <section class="stats">
+    <Stat label="Visitors" value={visitors()} hint="last 7 days" />
+    <Stat label="Sign-ups" value={signups()} hint="last 7 days" />
+    <Stat label="Conversion" value={rate()} hint="signups / visitors" />
+  </section>
+
+  <p class="note">
+    Click the button and watch: three numbers change,
+    and nothing else on the page is touched.
+  </p>
+</main></text></CodeBlock>
+
+      <CodeBlock label="components/Stat.azox"><text><script>
+  const { label, value, hint } = props();
+</script>
+
+<article class="stat">
+  <p class="stat-label">{label}</p>
+  <p class="stat-value">{value}</p>
+  <p class="stat-hint">{hint}</p>
+</article></text></CodeBlock>
+
+      <div class="note">
+        <p>
+          <code>rate</code> is a <code>computed</code>: it re-runs when
+          <code>visitors</code> or <code>signups</code> change, and nothing
+          else causes it to recalculate. See
+          <a href="/docs/reactivity">reactivity</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container reveal">
+    <div class="narrow">
+      <h2 style="margin-top:0">Using a template</h2>
+
+      <CodeBlock label="terminal"><text>npx azoxjs create my-app
+cd my-app
+npm install
+
+# replace pages/ and components/ with the template files,
+# then put the stylesheet in public/
+
+npm run dev</text></CodeBlock>
+
+      <p class="muted">
+        Every template is plain Azox — no build step beyond the framework, and
+        no dependencies to install. Try one in the
+        <a href="/playground">playground</a> first if you want to poke at it
+        before creating a project.
+      </p>
+    </div>
+  </section>
+
+  <Footer />
+</div>

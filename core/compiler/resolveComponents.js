@@ -167,7 +167,20 @@ function substituteProps(node, values, slotChildren) {
 
   const attrs = {};
   for (const [key, attr] of Object.entries(node.attrs ?? {})) {
-    attrs[key] = attr.kind === 'expr' ? { ...attr, expr: rewrite(attr.expr, values) } : attr;
+    if (attr.kind !== 'expr' || key.startsWith('on:')) {
+      attrs[key] = attr;
+      continue;
+    }
+
+    const expr = rewrite(attr.expr, values);
+
+    // Once the caller's props are substituted in, an expression may
+    // have become entirely constant — `class={current === 'docs' ? …}`
+    // with a literal `current`, for instance. Folding it here means
+    // no effect is created for a value that can never change, and a
+    // page built only from such components stays static.
+    const folded = evaluateConstant(expr);
+    attrs[key] = folded === null ? { ...attr, expr } : { kind: 'static', value: folded };
   }
 
   return {
@@ -175,6 +188,41 @@ function substituteProps(node, values, slotChildren) {
     attrs,
     children: (node.children ?? []).map((child) => substituteProps(child, values, slotChildren)),
   };
+}
+
+// Evaluates an expression that refers to nothing outside itself, and
+// returns the resulting string — or null if it cannot be folded.
+//
+// Deliberately conservative: anything containing an identifier that
+// is not a literal or a keyword is refused, so this can never run a
+// function call, read a signal, or touch anything with a side effect.
+// Only string, number and boolean results are folded, since those are
+// the only ones that render the same at build time as at runtime.
+const FOLDABLE_KEYWORDS = new Set(['true', 'false', 'null', 'undefined']);
+
+function evaluateConstant(expr) {
+  // Strip strings first, then look for anything identifier-shaped in
+  // what remains.
+  const withoutStrings = expr.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '');
+  const identifiers = withoutStrings.match(/[A-Za-z_$][\w$]*/g) ?? [];
+
+  if (identifiers.some((name) => !FOLDABLE_KEYWORDS.has(name))) return null;
+
+  // With no identifiers left, a "(" can only be grouping — there is
+  // nothing available to call. Braces, brackets, semicolons, arrows
+  // and assignment are still refused outright.
+  if (/[{}[\];]|=>/.test(withoutStrings)) return null;
+  if (/(^|[^!=<>])=([^=]|$)/.test(withoutStrings)) return null;
+
+  try {
+    const value = new Function(`"use strict"; return (${expr});`)();
+    const type = typeof value;
+
+    if (type === 'string' || type === 'number' || type === 'boolean') return String(value);
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // Returns the string a wholly-literal expression represents, or null

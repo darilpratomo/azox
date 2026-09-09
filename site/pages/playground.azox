@@ -1,6 +1,7 @@
 <head>
   <title>Playground — Azox</title>
   <meta name="description" content="Write Azox in your browser and see it compile and run, using the same compiler the CLI uses." />
+  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/style.css" />
   <script src="/site.js" defer></script>
   <script src="/playground.js" type="module"></script>
@@ -11,7 +12,7 @@
 </script>
 
 <div class="shell">
-  <Nav version="0.1.0" />
+  <Nav version="0.1.0" current="playground" />
 
   <div class="container" style="padding-top: 2rem">
     <h1 style="margin-bottom: 0.4rem">Playground</h1>

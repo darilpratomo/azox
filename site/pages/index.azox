@@ -1,6 +1,7 @@
 <head>
   <title>Azox — The Sound of Future Web</title>
   <meta name="description" content="A web framework with fine-grained signal reactivity and no Virtual DOM. Components compile straight to DOM operations." />
+  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/style.css" />
   <script src="/site.js" defer></script>
 </head>
@@ -19,45 +20,64 @@
 
   <header class="hero">
     <div class="container">
-      <span class="eyebrow">v0.1.0 · early development</span>
-      <h1>Azox<br /><span class="hero-tagline">The Sound of Future Web</span></h1>
-      <p class="hero-lede">
+      <span class="eyebrow rise-in">v0.1.0 · early development</span>
+      <h1 class="rise-in delay-1">Azox<br /><span class="hero-tagline">The Sound of Future Web</span></h1>
+      <p class="hero-lede rise-in delay-2">
         A web framework built from scratch. No Virtual DOM, no diffing, no
         runtime dependencies. Every binding compiles to a signal that writes
         to exactly one DOM node.
       </p>
 
-      <div class="hero-actions">
+      <div class="hero-actions rise-in delay-3">
         <a class="btn btn-primary" href="/docs">Get started</a>
         <a class="btn btn-ghost" href="/playground">Try the playground</a>
       </div>
 
-      <div class="install-line">
+      <div class="install-line rise-in delay-4">
         <span class="install-prompt">$</span>
         <span>npx azoxjs create my-app</span>
         <button class="copy-btn" data-copy-text="npx azoxjs create my-app">Copy</button>
       </div>
+
+      <div class="stats rise-in delay-5">
+        <div class="stat">
+          <p class="stat-value">0</p>
+          <p class="stat-label">dependencies</p>
+        </div>
+        <div class="stat">
+          <p class="stat-value">~1 KB</p>
+          <p class="stat-label">runtime, unminified</p>
+        </div>
+        <div class="stat">
+          <p class="stat-value">175</p>
+          <p class="stat-label">tests passing</p>
+        </div>
+        <div class="stat">
+          <p class="stat-value">MIT</p>
+          <p class="stat-label">licence</p>
+        </div>
+      </div>
     </div>
   </header>
 
-  <section class="section container">
+  <section class="section container reveal">
     <h2 class="section-title">See it work</h2>
     <p class="section-lede">
-      The counter below is a real Azox page, compiled with the same
-      compiler you install. Clicking updates one text node — nothing
-      else on this page is touched.
+      The counter below is a real Azox page, compiled with the same compiler
+      you install. Clicking updates one text node — nothing else on this page
+      is touched.
     </p>
 
     <div class="demo">
       <div class="demo-stage">
         <span class="demo-readout">{count()}</span>
-        <div class="hero-actions">
+        <div class="hero-actions" style="margin-bottom:0">
           <button class="btn btn-primary" on:click={() => count.set(count() + 1)}>Add one</button>
           <button class="btn btn-ghost" on:click={() => count.set(0)}>Reset</button>
         </div>
         <p class="demo-note">
-          No Virtual DOM was consulted. The effect bound to that number
-          is the only thing that ran.
+          No Virtual DOM was consulted. The effect bound to that number is the
+          only thing that ran.
         </p>
       </div>
 
@@ -75,11 +95,52 @@
     </div>
   </section>
 
-  <section class="section container">
+  <section class="section container reveal">
+    <h2 class="section-title">The same idea, three ways</h2>
+    <p class="section-lede">
+      Most frameworks re-run your component and compare the result. Azox
+      compiles the comparison away entirely.
+    </p>
+
+    <div class="compare">
+      <CodeBlock label="React — re-run and diff"><text>function Counter() {
+  const [n, setN] = useState(0);
+
+  // This whole function runs again on
+  // every click. React then compares
+  // the returned tree with the last one
+  // to work out what changed.
+  return (
+    <button onClick={() => setN(n + 1)}>
+      Count: {n}
+    </button>
+  );
+}</text></CodeBlock>
+
+      <CodeBlock label="Azox — write to the node"><text><script>
+  import { signal } from 'azox/reactivity';
+  const n = signal(0);
+</script>
+
+<!-- Compiles to one effect holding a
+     reference to one text node. On a
+     click, that node is assigned to.
+     Nothing is re-run or compared. -->
+<button on:click={() => n.set(n() + 1)}>
+  Count: {n()}
+</button></text></CodeBlock>
+    </div>
+
+    <p class="muted">
+      Read <a href="/why">why this matters</a> for the reasoning, or
+      <a href="/docs/reactivity">the reactivity docs</a> for the mechanics.
+    </p>
+  </section>
+
+  <section class="section container reveal">
     <h2 class="section-title">Why it is different</h2>
     <p class="section-lede">
-      Most frameworks re-run your component and compare the result.
-      Azox compiles the comparison away entirely.
+      Six decisions that shape everything else about the framework.
     </p>
 
     <div class="grid">
@@ -117,7 +178,7 @@
         <h3>Its own syntax</h3>
         <p>
           <code>.azox</code> files are HTML with <code>{'{'}expr{'}'}</code>
-          interpolation and <code>on:event</code> bindings. Not JSX, not a
+          interpolation and <code>on:event</code> bindings. Not JSX, and no
           template DSL to memorise.
         </p>
       </div>
@@ -142,11 +203,11 @@
     </div>
   </section>
 
-  <section class="section container">
+  <section class="section container reveal">
     <h2 class="section-title">What a project looks like</h2>
     <p class="section-lede">
-      The file layout is the routing table, and there is no configuration
-      file to learn.
+      The file layout is the routing table, and there is no configuration file
+      to learn.
     </p>
 
     <div class="demo">
@@ -171,11 +232,52 @@
   <p>{body}</p>
 </article></text></CodeBlock>
     </div>
+  </section>
 
-    <p class="muted">
-      Read the <a href="/docs">documentation</a> to go further, or open the
-      <a href="/playground">playground</a> to compile a page in your browser.
-    </p>
+  <section class="section container reveal">
+    <h2 class="section-title">Where to go next</h2>
+
+    <div class="grid">
+      <a class="card card-link" href="/learn">
+        <p class="card-icon">TUTORIAL</p>
+        <h3>Build something real</h3>
+        <p>
+          A step-by-step walkthrough: from an empty directory to a deployed
+          site, explaining each decision as it comes up.
+        </p>
+        <span class="card-more">Start the tutorial →</span>
+      </a>
+
+      <a class="card card-link" href="/templates">
+        <p class="card-icon">TEMPLATES</p>
+        <h3>Start from a template</h3>
+        <p>
+          Complete, working sites — a landing page, a portfolio, a blog and a
+          dashboard. Copy the files, or download the whole thing.
+        </p>
+        <span class="card-more">Browse templates →</span>
+      </a>
+
+      <a class="card card-link" href="/playground">
+        <p class="card-icon">PLAYGROUND</p>
+        <h3>Try it in the browser</h3>
+        <p>
+          The real compiler, running client-side. Edit a page and watch both
+          the output and the generated JavaScript change.
+        </p>
+        <span class="card-more">Open the playground →</span>
+      </a>
+
+      <a class="card card-link" href="/docs">
+        <p class="card-icon">DOCS</p>
+        <h3>Read the documentation</h3>
+        <p>
+          Reactivity, template syntax, components, routing, the CLI, and an
+          honest page about what Azox cannot do yet.
+        </p>
+        <span class="card-more">Read the docs →</span>
+      </a>
+    </div>
   </section>
 
   <Footer />
