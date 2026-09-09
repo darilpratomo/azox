@@ -1,5 +1,7 @@
 # Azox Framework
 
+[![CI](https://github.com/darilpratomo/azox/actions/workflows/ci.yml/badge.svg)](https://github.com/darilpratomo/azox/actions/workflows/ci.yml)
+
 **The Sound of Future Web**
 
 Azox is a web framework built from scratch — no Virtual DOM, no
@@ -62,7 +64,7 @@ cd .azox/build && python3 -m http.server 4321
 ```
 azox create <name>   Scaffold a new Azox project
 azox compile         Compile pages/index.azox (--page=<name> for others)
-azox test            Verify the toolchain end to end
+azox doctor          Check that the toolchain and project are healthy
 azox -v              Print the version
 azox help            Show all commands
 ```
@@ -81,6 +83,19 @@ azox/
 │   └── meta.js               version and identity strings
 └── pages/                    example .azox pages
 ```
+
+## Tests
+
+```bash
+npm test
+```
+
+The suite runs on Node's built-in test runner — no test framework
+dependency. It covers the reactivity primitives, the parser, the
+compiler's emitted code, HTML escaping in the server renderer, CLI
+argument parsing, and an end-to-end pass that compiles a fixture
+project and executes the output to confirm the page really is
+reactive.
 
 ## Design Principles
 

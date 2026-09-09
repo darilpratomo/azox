@@ -3,7 +3,7 @@
 // `azox help` renders itself from this, so adding a command here is
 // enough to make it discoverable.
 
-import { testCommand } from '../commands/test.js';
+import { doctorCommand } from '../commands/doctor.js';
 import { compileCommand } from '../commands/compile.js';
 import { versionCommand } from '../commands/version.js';
 import { createCommand } from '../commands/create.js';
@@ -20,10 +20,10 @@ export const registry = {
     describe: 'Compile a .azox page to HTML + a hydration module',
     examples: ['azox compile', 'azox compile --page=about'],
   },
-  test: {
-    run: testCommand,
-    describe: 'Verify the toolchain by compiling the default page',
-    examples: ['azox test'],
+  doctor: {
+    run: doctorCommand,
+    describe: 'Check that the toolchain and project are healthy',
+    examples: ['azox doctor'],
   },
   version: {
     run: versionCommand,

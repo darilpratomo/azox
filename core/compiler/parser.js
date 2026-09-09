@@ -123,6 +123,11 @@ function parseNode(tokens) {
       if (result.node) children.push(result.node);
       remaining = result.rest;
     }
+
+    if (!remaining.length) {
+      throw new Error(`Azox parse error: <${name}> is never closed`);
+    }
+
     remaining = remaining.slice(1); // drop the matching close tag
 
     return { node: { type: 'element', name, attrs, children }, rest: remaining };

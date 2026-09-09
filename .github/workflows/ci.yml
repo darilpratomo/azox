@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 18 is the floor declared in package.json engines; 20 and 22
+        # are the active LTS lines Azox must keep working on.
+        node-version: ['18.x', '20.x', '22.x']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Run tests
+        run: npm test
+
+      - name: Verify the example page still builds
+        run: node bin/azox.js compile
