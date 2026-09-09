@@ -39,17 +39,18 @@
         props. Reactivity crosses the boundary intact.
       </p>
 
-      <h2>No control flow in markup</h2>
+      <h2>Lists rebuild rather than reconcile</h2>
       <p>
-        There is no <code>if</code>, <code>each</code> or <code>for</code>
-        block. A list cannot be rendered from an array, and a section cannot be
-        conditionally shown.
+        <a href="/docs/control-flow"><code>&lt;each&gt;</code> and
+        <code>&lt;if&gt;</code></a> exist, but there is no keyed
+        reconciliation: when a list's source changes, the block's contents are
+        rebuilt rather than matched against what was already there.
       </p>
       <p>
-        <strong>Workaround:</strong> a ternary inside an expression covers
-        simple cases — <code>class={'{'}active() ? 'on' : 'off'{'}'}</code> —
-        but there is no way to repeat markup. This is the largest gap, and the
-        most likely thing to change next.
+        For most lists this is not noticeable. It matters for a list that
+        updates very often, or one holding focus or scroll position inside it,
+        since those are lost on a rebuild. Bindings outside the list keep
+        their fine-grained behaviour.
       </p>
 
       <h2>No dynamic routes</h2>

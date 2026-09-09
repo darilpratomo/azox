@@ -200,8 +200,8 @@ pages/index.azox        →  one flat sequence of DOM calls
               <td>Components are inlined, so state inside one would share the caller's scope</td>
             </tr>
             <tr>
-              <td>Loops and conditionals in markup</td>
-              <td>Not built yet — the largest gap, and the next thing to change</td>
+              <td>Keyed list reconciliation</td>
+              <td>Lists render, but a change rebuilds the block rather than matching entries</td>
             </tr>
             <tr>
               <td>A large ecosystem</td>

@@ -30,17 +30,25 @@ export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
   // it alone avoids a pointless rebuild, and avoids destroying nodes
   // that other scripts on the page may be holding.
   const isStatic = !statements.some(
-    (line) => line.startsWith('effect(') || line.includes('.addEventListener(')
+    (line) =>
+      line.startsWith('effect(') ||
+      line.startsWith('_blocks.push(') ||
+      line.includes('.addEventListener(')
   );
+
+  // Control-flow blocks need their markers to be in the document
+  // before they can insert anything, so they are collected here and
+  // started once the tree is mounted.
+  const usesBlocks = statements.some((line) => line.startsWith('_blocks.push('));
 
   return `
 import { effect } from '${runtimeSpecifier}';
 ${script}
 
 export function render(mount) {
-${statements.map((line) => '  ' + line).join('\n')}
+${usesBlocks ? '  const _blocks = [];\n' : ''}${statements.map((line) => '  ' + line).join('\n')}
   mount.appendChild(${rootVar});
-  return ${rootVar};
+${usesBlocks ? '  for (const _start of _blocks) _start();\n' : ''}  return ${rootVar};
 }
 ${isStatic ? staticNote() : hydrateBlock()}`.trimStart();
 }
@@ -81,6 +89,9 @@ function emitNode(node, statements, fallbackVar) {
     return varName;
   }
 
+  if (node.type === 'each') return emitEach(node, statements);
+  if (node.type === 'if') return emitIf(node, statements);
+
   const varName = nextId();
   statements.push(`const ${varName} = document.createElement(${JSON.stringify(node.name)});`);
 
@@ -91,6 +102,120 @@ function emitNode(node, statements, fallbackVar) {
   appendChildren(varName, node.children, statements, fallbackVar);
 
   return varName;
+}
+
+// Control flow needs a fixed point in the DOM to work from, since the
+// nodes it manages come and go. An empty comment node serves as that
+// anchor: it stays put, and everything the block renders is inserted
+// before it and removed by walking back from it.
+//
+// Only the nodes between the markers are touched when the source
+// signal changes — the rest of the page is never involved, which is
+// the same guarantee a text binding gives.
+function emitControlBlock(statements, buildBody, sourceExpr, renderCall) {
+  const start = nextId();
+  const end = nextId();
+  const frag = nextId();
+
+  statements.push(`const ${start} = document.createComment('');`);
+  statements.push(`const ${end} = document.createComment('');`);
+
+  // The body is compiled once into a function, then called as needed.
+  const bodyLines = [];
+  const bodyVar = buildBody(bodyLines);
+
+  statements.push(`const ${frag} = (${bodyVar.params}) => {`);
+  statements.push(`  const _frag = document.createDocumentFragment();`);
+  for (const line of bodyLines) statements.push(`  ${line}`);
+  for (const rootVar of bodyVar.roots) {
+    statements.push(`  if (${rootVar} !== null) _frag.appendChild(${rootVar});`);
+  }
+  statements.push(`  return _frag;`);
+  statements.push(`};`);
+
+  // Deferred until the tree is mounted: the markers have no parent
+  // while the page is still being assembled, and a block cannot
+  // insert anything without one.
+  statements.push(`_blocks.push(() => effect(() => {`);
+  statements.push(`  // Read the source before anything can return early. An effect`);
+  statements.push(`  // subscribes only to what it reads, so bailing out first would`);
+  statements.push(`  // leave this block subscribed to nothing and never update.`);
+  statements.push(`  const _source = ${sourceExpr};`);
+  statements.push(``);
+  statements.push(`  // Clearing walks back from the end marker, so nothing outside`);
+  statements.push(`  // the block can be removed by accident.`);
+  statements.push(`  while (${end}.previousSibling && ${end}.previousSibling !== ${start}) {`);
+  statements.push(`    ${end}.previousSibling.remove();`);
+  statements.push(`  }`);
+  statements.push(``);
+  statements.push(`  const _parent = ${end}.parentNode;`);
+  statements.push(`  if (!_parent) return;`);
+  for (const line of renderCall(frag, end)) statements.push(`  ${line}`);
+  statements.push(`}));`);
+
+  // Hand back a fragment holding both markers, so the caller appends
+  // this the way it appends any other node.
+  const holder = nextId();
+  statements.push(`const ${holder} = document.createDocumentFragment();`);
+  statements.push(`${holder}.append(${start}, ${end});`);
+
+  return holder;
+}
+
+function emitEach(node, statements) {
+  const params = node.index ? `${node.alias}, ${node.index}` : node.alias;
+
+  return emitControlBlock(
+    statements,
+    (bodyLines) => {
+      // Compile the body once; each iteration calls it with its own
+      // item, so the DOM calls are shared rather than duplicated.
+      const roots = node.children.map((child) => emitNode(child, bodyLines, 'root'));
+      return { params, roots };
+    },
+    node.expr,
+    (frag, endVar) => [
+      `if (_source) {`,
+      `  let _i = 0;`,
+      `  for (const _item of _source) {`,
+      `    _parent.insertBefore(${frag}(_item${node.index ? ', _i' : ''}), ${endVar});`,
+      `    _i++;`,
+      `  }`,
+      `}`,
+    ]
+  );
+}
+
+function emitIf(node, statements) {
+  return emitControlBlock(
+    statements,
+    (bodyLines) => {
+      // Both branches are compiled into the same function, selected by
+      // a flag, so a conditional costs one function rather than two.
+      const thenLines = [];
+      const thenRoots = node.then.map((child) => emitNode(child, thenLines, 'root'));
+
+      const elseLines = [];
+      const elseRoots = node.otherwise.map((child) => emitNode(child, elseLines, 'root'));
+
+      bodyLines.push(`const _out = document.createDocumentFragment();`);
+      bodyLines.push(`if (_branch) {`);
+      for (const line of thenLines) bodyLines.push(`  ${line}`);
+      for (const root of thenRoots) {
+        if (root !== 'null') bodyLines.push(`  _out.appendChild(${root});`);
+      }
+      bodyLines.push(`} else {`);
+      for (const line of elseLines) bodyLines.push(`  ${line}`);
+      for (const root of elseRoots) {
+        if (root !== 'null') bodyLines.push(`  _out.appendChild(${root});`);
+      }
+      bodyLines.push(`}`);
+
+      return { params: '_branch', roots: ['_out'] };
+    },
+    node.expr,
+    (frag, endVar) => [`_parent.insertBefore(${frag}(Boolean(_source)), ${endVar});`]
+  );
 }
 
 function appendChildren(parentVar, children, statements, fallbackVar) {

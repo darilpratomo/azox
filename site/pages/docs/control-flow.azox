@@ -1,0 +1,195 @@
+<head>
+  <title>Loops &amp; conditionals — Azox</title>
+  <meta name="description" content="Rendering lists with <each> and branching with <if> in Azox." />
+  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" current="docs" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/control-flow" />
+
+    <main class="doc-body">
+      <h1>Loops &amp; conditionals</h1>
+      <p class="lede">
+        <code>&lt;each&gt;</code> renders a list and <code>&lt;if&gt;</code>
+        picks a branch. Both are tags rather than a separate template
+        language, so they nest inside your markup like anything else.
+      </p>
+
+      <h2>Rendering a list</h2>
+      <p>
+        <code>item</code> is the list, and <code>as</code> names the variable
+        the body uses for each entry — the way a parameter names an argument.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><script>
+  import { signal } from 'azox/reactivity';
+
+  const todos = signal(['Write docs', 'Ship it']);
+</script>
+
+<ul>
+  <each item={todos()} as="todo">
+    <li>{todo}</li>
+  </each>
+</ul></text></CodeBlock>
+
+      <h3>The index</h3>
+
+      <CodeBlock label="with an index"><text><each item={todos()} as="todo" index="i">
+  <li>{i + 1}. {todo}</li>
+</each></text></CodeBlock>
+
+      <h3>Objects</h3>
+
+      <CodeBlock label="a list of objects"><text><script>
+  import { signal } from 'azox/reactivity';
+
+  const people = signal([
+    { name: 'Ada', role: 'Engineer' },
+    { name: 'Grace', role: 'Admiral' },
+  ]);
+</script>
+
+<ul>
+  <each item={people()} as="person">
+    <li>
+      <strong>{person.name}</strong> — {person.role}
+    </li>
+  </each>
+</ul></text></CodeBlock>
+
+      <div class="note">
+        <p>
+          An empty list renders nothing, and so does a list that is
+          <code>null</code> or <code>undefined</code> — useful while data is
+          still loading.
+        </p>
+      </div>
+
+      <h2>Branching</h2>
+      <p>
+        <code>cond</code> takes any expression. <code>&lt;else /&gt;</code>
+        marks where the second branch begins.
+      </p>
+
+      <CodeBlock label="if / else"><text><if cond={user()}>
+  <p>Signed in as {user().name}</p>
+<else />
+  <a href="/login">Sign in</a>
+</if></text></CodeBlock>
+
+      <CodeBlock label="if on its own"><text><if cond={errors().length > 0}>
+  <p class="error">Something went wrong.</p>
+</if></text></CodeBlock>
+
+      <h2>Nesting</h2>
+      <p>
+        A conditional inside a loop sees the loop variable, and loops nest
+        as deeply as you need.
+      </p>
+
+      <CodeBlock label="nested"><text><each item={tasks()} as="task">
+  <li>
+    <if cond={task.done}>
+      <s>{task.title}</s>
+    <else />
+      <span>{task.title}</span>
+    </if>
+  </li>
+</each></text></CodeBlock>
+
+      <h2>How updates work</h2>
+      <p>
+        Each block marks its place in the DOM with a pair of comment nodes.
+        When its source signal changes, the nodes between those markers are
+        replaced — and nothing outside them is touched.
+      </p>
+      <p>
+        The body is compiled once into a small builder function that is called
+        per item, rather than being duplicated per entry. Everything else on
+        the page, including other lists, is unaffected by an update here.
+      </p>
+
+      <div class="note note-warn">
+        <p>
+          <strong>A changed list rebuilds its own contents.</strong> There is
+          no keyed reconciliation in this version, so a list that updates very
+          often, or holds focus or scroll state inside it, will feel that.
+          Bindings outside the list keep their fine-grained behaviour.
+        </p>
+      </div>
+
+      <h2>Server rendering</h2>
+      <p>
+        Both are evaluated during the build, so a page arrives with its list
+        already in the HTML rather than filling in once scripts run.
+      </p>
+
+      <CodeBlock label="rendered output"><text><!-- pages/index.azox -->
+<ul>
+  <each item={todos()} as="todo">
+    <li>{todo}</li>
+  </each>
+</ul>
+
+<!-- what the server sends -->
+<ul><li>Write docs</li><li>Ship it</li></ul></text></CodeBlock>
+
+      <h2>Reference</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Attribute</th>
+              <th>On</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>item={'{'}…{'}'}</code></td>
+              <td><code>&lt;each&gt;</code></td>
+              <td>The list to iterate. Required.</td>
+            </tr>
+            <tr>
+              <td><code>as="name"</code></td>
+              <td><code>&lt;each&gt;</code></td>
+              <td>Names the current entry. Required.</td>
+            </tr>
+            <tr>
+              <td><code>index="name"</code></td>
+              <td><code>&lt;each&gt;</code></td>
+              <td>Names the position, starting at 0. Optional.</td>
+            </tr>
+            <tr>
+              <td><code>cond={'{'}…{'}'}</code></td>
+              <td><code>&lt;if&gt;</code></td>
+              <td>The expression to test. Required.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/components">Components</a> — reusing markup</li>
+        <li><a href="/docs/limitations">Limitations</a> — what is still missing</li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

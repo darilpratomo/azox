@@ -27,24 +27,27 @@
 }
 
 :root {
-  /* Surfaces, darkest to lightest */
-  --bg: #07070b;
-  --surface: #0e0e15;
-  --surface-2: #14141d;
-  --surface-3: #1b1b27;
-  --border: #22222f;
-  --border-bright: #34344c;
+  /* Surfaces. Blue-tinted near-black rather than pure black, which
+     is what gives a dark interface depth instead of a flat void. */
+  --bg: #0b0d13;
+  --surface: #11141c;
+  --surface-2: #161a24;
+  --surface-3: #1d222e;
+  --border: #212633;
+  --border-bright: #303748;
 
   /* Text */
-  --text: #f4f4f9;
-  --text-dim: #a3a3bd;
-  --text-faint: #6c6c8a;
+  --text: #f2f4f8;
+  --text-dim: #9ba3b4;
+  --text-faint: #6b7385;
 
-  /* The "sound" accent: electric cyan into violet */
-  --accent: #4de8f0;
-  --accent-2: #a97cff;
-  --accent-3: #ff7ac6;
-  --accent-dim: rgba(77, 232, 240, 0.13);
+  /* Accents. Kept as small marks — a dot, a hairline, a highlight —
+     rather than large fields of colour. */
+  --accent: #5eead4;
+  --accent-2: #818cf8;
+  --accent-3: #f0abfc;
+  --accent-warm: #fb923c;
+  --accent-dim: rgba(94, 234, 212, 0.12);
   --gradient: linear-gradient(115deg, var(--accent), var(--accent-2));
   --gradient-wide: linear-gradient(115deg, var(--accent), var(--accent-2) 55%, var(--accent-3));
 
@@ -59,8 +62,8 @@
   --font-sans: 'Sora', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
 
-  --radius: 14px;
-  --radius-sm: 9px;
+  --radius: 16px;
+  --radius-sm: 10px;
   --measure: 68ch;
   --nav-height: 62px;
 
@@ -99,9 +102,9 @@ body::before {
   position: fixed;
   inset: -20%;
   background:
-    radial-gradient(38rem 26rem at 14% 8%, rgba(77, 232, 240, 0.1), transparent 62%),
-    radial-gradient(34rem 24rem at 86% 2%, rgba(169, 124, 255, 0.09), transparent 62%),
-    radial-gradient(30rem 22rem at 60% 82%, rgba(255, 122, 198, 0.05), transparent 65%);
+    radial-gradient(42rem 28rem at 16% 4%, rgba(94, 234, 212, 0.07), transparent 64%),
+    radial-gradient(38rem 26rem at 84% 0%, rgba(129, 140, 248, 0.08), transparent 64%),
+    radial-gradient(34rem 24rem at 55% 88%, rgba(251, 146, 60, 0.045), transparent 66%);
   pointer-events: none;
   z-index: 0;
   animation: drift 26s var(--ease) infinite alternate;
@@ -698,11 +701,34 @@ code {
 }
 
 .card-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--accent);
-  margin-bottom: 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin-bottom: 0.8rem;
 }
+
+/* A small coloured dot as the marker, rather than colouring the whole
+   label — enough to identify a card at a glance without the grid
+   turning into a wall of colour. */
+.card-icon::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dot, var(--accent));
+  flex-shrink: 0;
+}
+
+.card:nth-child(6n + 1) { --dot: #5eead4; }
+.card:nth-child(6n + 2) { --dot: #818cf8; }
+.card:nth-child(6n + 3) { --dot: #fb923c; }
+.card:nth-child(6n + 4) { --dot: #f0abfc; }
+.card:nth-child(6n + 5) { --dot: #a3e635; }
+.card:nth-child(6n) { --dot: #38bdf8; }
 
 /* A card that is a link to somewhere else. */
 .card-link {

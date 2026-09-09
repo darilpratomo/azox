@@ -11,7 +11,12 @@ export function signal(initialValue) {
   const subscribers = new Set();
 
   function read() {
-    if (activeEffect) subscribers.add(activeEffect);
+    if (activeEffect) {
+      subscribers.add(activeEffect);
+      // Remember the link from both ends, so disposing an effect can
+      // remove it from every signal it read.
+      activeEffect.sources.add(subscribers);
+    }
     return value;
   }
 
@@ -29,6 +34,10 @@ export function signal(initialValue) {
 
 export function effect(fn) {
   const wrapped = () => {
+    // Drop last run's subscriptions before re-reading. Without this,
+    // an effect stays subscribed to signals it no longer reads.
+    unsubscribe(wrapped);
+
     const previous = activeEffect;
     activeEffect = wrapped;
     try {
@@ -37,8 +46,34 @@ export function effect(fn) {
       activeEffect = previous;
     }
   };
+
+  wrapped.sources = new Set();
+
+  // Effects created while another effect runs — a control-flow block
+  // rebuilding its body, say — belong to it, so they can be disposed
+  // together when it re-runs.
+  if (activeEffect) activeEffect.children.add(wrapped);
+  wrapped.children = new Set();
+
   wrapped();
   return wrapped;
+}
+
+// Detaches an effect from every signal it read, and disposes anything
+// it created. Called before a re-run and by dispose().
+function unsubscribe(effectFn) {
+  for (const child of effectFn.children) unsubscribe(child);
+  effectFn.children.clear();
+
+  for (const subscribers of effectFn.sources) subscribers.delete(effectFn);
+  effectFn.sources.clear();
+}
+
+// Stops an effect permanently. Control-flow blocks use this to clean
+// up the effects belonging to content they are about to remove;
+// without it, every list item ever rendered would stay subscribed.
+export function dispose(effectFn) {
+  if (effectFn) unsubscribe(effectFn);
 }
 
 export function computed(fn) {

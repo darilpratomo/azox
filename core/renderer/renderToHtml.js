@@ -24,6 +24,11 @@ function renderNode(node, scope) {
     return node.parts.map((part) => renderTextPart(part, scope)).join('');
   }
 
+  // Control flow is evaluated once here, so the page arrives with its
+  // list already rendered rather than filling in when scripts run.
+  if (node.type === 'each') return renderEach(node, scope);
+  if (node.type === 'if') return renderIf(node, scope);
+
   const attrs = Object.entries(node.attrs)
     .filter(([key]) => !key.startsWith('on:'))
     .map(([key, attr]) => {
@@ -36,6 +41,31 @@ function renderNode(node, scope) {
 
   const inner = node.children.map((child) => renderNode(child, scope)).join('');
   return `<${node.name}${attrs}>${inner}</${node.name}>`;
+}
+
+// Each iteration renders with the loop variable added to the scope,
+// so the body sees it the same way the compiled version does.
+function renderEach(node, scope) {
+  const items = evalExpr(node.expr, scope);
+  if (!items) return '';
+
+  let html = '';
+  let index = 0;
+
+  for (const item of items) {
+    const inner = { ...scope, [node.alias]: item };
+    if (node.index) inner[node.index] = index;
+
+    html += node.children.map((child) => renderNode(child, inner)).join('');
+    index++;
+  }
+
+  return html;
+}
+
+function renderIf(node, scope) {
+  const branch = evalExpr(node.expr, scope) ? node.then : node.otherwise;
+  return branch.map((child) => renderNode(child, scope)).join('');
 }
 
 // Three kinds of text, three rules:

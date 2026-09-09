@@ -321,6 +321,65 @@ function findExpressionEnd(source, start, describe) {
   throw new ParseError(`Azox parse error: ${describe} is never closed`);
 }
 
+// <each> and <if> are control flow rather than markup, so they become
+// their own node types. Everything else is an element or a component.
+function nodeTypeFor(name) {
+  if (name === 'each') return 'each';
+  if (name === 'if') return 'if';
+  if (name === 'else') return 'else';
+  return isComponentName(name) ? 'component' : 'element';
+}
+
+// <each item={list()} as="thing"> — `as` names the loop variable so
+// the body can refer to it, the way a parameter names an argument.
+function buildEach(attrs, children) {
+  const list = attrs.item ?? attrs.of;
+
+  if (!list || list.kind !== 'expr') {
+    throw new ParseError(
+      'Azox parse error: <each> needs item={...} — for example <each item={todos()} as="todo">'
+    );
+  }
+
+  const alias = attrs.as;
+
+  if (!alias || alias.kind !== 'static' || !/^[A-Za-z_$][\w$]*$/.test(alias.value)) {
+    throw new ParseError(
+      'Azox parse error: <each> needs as="name", where name is a plain identifier'
+    );
+  }
+
+  // An optional index, declared the same way.
+  const indexAttr = attrs.index;
+  const index =
+    indexAttr && indexAttr.kind === 'static' && /^[A-Za-z_$][\w$]*$/.test(indexAttr.value)
+      ? indexAttr.value
+      : null;
+
+  return { type: 'each', expr: list.expr, alias: alias.value, index, children };
+}
+
+// <if cond={...}> … <else /> … </if> — the marker splits the children
+// into the two branches.
+function buildIf(attrs, children) {
+  const condition = attrs.cond ?? attrs.when;
+
+  if (!condition || condition.kind !== 'expr') {
+    throw new ParseError(
+      'Azox parse error: <if> needs cond={...} — for example <if cond={user()}>'
+    );
+  }
+
+  const splitAt = children.findIndex((child) => child.type === 'else');
+
+  return {
+    type: 'if',
+    expr: condition.expr,
+    then: splitAt === -1 ? children : children.slice(0, splitAt),
+    otherwise: splitAt === -1 ? [] : children.slice(splitAt + 1),
+  };
+}
+
 function parseNode(tokens) {
   const [token, ...rest] = tokens;
 
@@ -337,9 +396,11 @@ function parseNode(tokens) {
 
   if (token.type === 'open') {
     const { name, attrs, selfClosing } = token;
-    const type = isComponentName(name) ? 'component' : 'element';
+    const type = nodeTypeFor(name);
 
     if (selfClosing) {
+      // <else /> is a marker inside <if>, not a node of its own; the
+      // <if> handler below is what gives it meaning.
       return { node: { type, name, attrs, children: [] }, rest };
     }
 
@@ -356,6 +417,9 @@ function parseNode(tokens) {
     }
 
     remaining = remaining.slice(1); // drop the matching close tag
+
+    if (type === 'each') return { node: buildEach(attrs, children), rest: remaining };
+    if (type === 'if') return { node: buildIf(attrs, children), rest: remaining };
 
     return { node: { type, name, attrs, children }, rest: remaining };
   }
