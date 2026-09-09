@@ -1,6 +1,8 @@
 # Azox Framework
 
 [![CI](https://github.com/darilpratomo/azox/actions/workflows/ci.yml/badge.svg)](https://github.com/darilpratomo/azox/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/azoxjs.svg)](https://www.npmjs.com/package/azoxjs)
+[![install size](https://img.shields.io/badge/dependencies-0-brightgreen)](https://www.npmjs.com/package/azoxjs)
 
 **The Sound of Future Web**
 
