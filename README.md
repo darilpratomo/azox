@@ -31,6 +31,38 @@ the one DOM node it owns. No tree diffing, no wasted re-renders.
 </button>
 ```
 
+## Routing
+
+The file layout is the routing table. A page becomes a directory with
+an `index.html`, so URLs carry no extension and work on any static
+host without rewrite rules.
+
+```
+pages/index.azox            →  /
+pages/about.azox            →  /about
+pages/blog/index.azox       →  /blog
+pages/blog/first-post.azox  →  /blog/first-post
+```
+
+```
+.azox/build/
+├── index.html
+├── page.client.js
+├── azox-runtime.js          one runtime, shared by every page
+├── about/
+│   ├── index.html
+│   └── page.client.js
+└── blog/
+    ├── index.html
+    ├── page.client.js
+    └── first-post/
+        ├── index.html
+        └── page.client.js
+```
+
+Build one page with `azox compile --page=blog/first-post`, or by its
+URL: `azox compile --page=/blog/first-post`.
+
 ## Components
 
 A component is a `.azox` file that declares what it accepts and
@@ -124,16 +156,17 @@ azox compile
 ```
 
 The build lands in `.azox/build/` as a self-contained static bundle —
-an HTML file per page, a compiled hydration module, and a copy of the
-runtime. No dev machinery is included. Serve that directory with any
-static host and it works with no install step.
+an `index.html` per route, a compiled hydration module beside it, and
+one shared copy of the runtime. No dev machinery is included. Serve
+that directory with any static host and it works with no install
+step and no rewrite configuration.
 
 ## CLI
 
 ```
 azox create <name>   Scaffold a new Azox project
 azox dev             Serve the project, rebuilding on every change
-azox compile         Build every page (--page=<name> for just one)
+azox compile         Build every page (--page=<name|url> for one)
 azox doctor          Check that the toolchain and project are healthy
 azox -v              Print the version
 azox help            Show all commands
@@ -155,6 +188,7 @@ azox/
 │   ├── reactivity/           signal() / effect() / computed()
 │   ├── renderer/             server-side HTML rendering
 │   ├── build.js              the build pipeline, shared by commands
+│   ├── routes.js             file layout → urls and output paths
 │   └── meta.js               version and identity strings
 ├── pages/                    example .azox pages
 └── components/               example .azox components

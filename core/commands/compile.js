@@ -6,7 +6,7 @@
 
 import { relative } from 'node:path';
 
-import { buildAll, buildPage, BuildError } from '../build.js';
+import { buildAll, buildPage, BuildError, BUILD_DIR } from '../build.js';
 import { BANNER } from '../meta.js';
 
 export function compileCommand({ flags }) {
@@ -15,16 +15,16 @@ export function compileCommand({ flags }) {
   const projectDir = process.cwd();
 
   try {
-    const results = flags.page
-      ? [buildPage(projectDir, flags.page)]
-      : buildAll(projectDir);
+    const results = flags.page ? [buildPage(projectDir, flags.page)] : buildAll(projectDir);
 
     console.log(BANNER);
+    console.log('');
+    console.log(`Built ${results.length} page${results.length === 1 ? '' : 's'} to ${BUILD_DIR}/`);
+    console.log('');
+
+    const width = Math.max(...results.map((result) => result.url.length));
     for (const result of results) {
-      console.log(`Compiled ${relative(projectDir, result.sourcePath)} ->`);
-      for (const path of [result.htmlPath, result.clientPath, result.runtimePath]) {
-        console.log(`  ${relative(projectDir, path)}`);
-      }
+      console.log(`  ${result.url.padEnd(width)}  ${relative(projectDir, result.htmlPath)}`);
     }
   } catch (error) {
     if (!(error instanceof BuildError)) throw error;

@@ -1,0 +1,6 @@
+<main class="page">
+  <h1>About</h1>
+  <p>Azox compiles .azox files into fine-grained, signal-driven DOM updates.</p>
+  <p>This page is served at /about — the file layout is the routing table.</p>
+  <p><a href="/">Home</a></p>
+</main>

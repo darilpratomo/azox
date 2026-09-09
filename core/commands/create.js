@@ -42,6 +42,7 @@ export function createCommand({ positionals, flags }) {
   const files = {
     'package.json': projectPackageJson(name),
     'pages/index.azox': starterPage(name),
+    'pages/about.azox': aboutPage(name),
     'components/Counter.azox': starterComponent(),
     '.gitignore': '.azox/\nnode_modules/\n.DS_Store\n',
     'README.md': projectReadme(name),
@@ -98,6 +99,19 @@ function starterPage(name) {
   <button on:click={() => count.set(count() + 1)}>
     Add one
   </button>
+
+  <p><a href="/about">About</a></p>
+</main>
+`;
+}
+
+// pages/about.azox is served at /about — the file layout is the
+// routing table.
+function aboutPage(name) {
+  return `<main class="page">
+  <h1>About</h1>
+  <p>${name} is built with Azox.</p>
+  <p><a href="/">Home</a></p>
 </main>
 `;
 }

@@ -52,6 +52,7 @@ The suite covers:
 | `test/components.test.js` | component resolution, props, slots, errors |
 | `test/renderer.test.js` | server-rendered HTML and escaping |
 | `test/cli.test.js` | argument parsing |
+| `test/routes.test.js` | file layout → urls and output paths |
 | `test/build-api.test.js` | the build pipeline as a module |
 | `test/dev-server.test.js` | static serving, path traversal, live reload |
 | `test/build.test.js` | the CLI end to end, on real temp projects |

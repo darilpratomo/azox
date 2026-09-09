@@ -1,11 +1,11 @@
 // `azox doctor` — checks that the toolchain and the current project
 // are in a working state, and reports what it finds.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import { parseAzox } from '../compiler/parser.js';
 import { resolveComponents } from '../compiler/resolveComponents.js';
+import { listRoutes, PAGES_DIR } from '../build.js';
 import { BANNER, VERSION } from '../meta.js';
 
 const MIN_NODE_MAJOR = 18;
@@ -23,35 +23,37 @@ export function doctorCommand() {
 
   checks.push({ ok: true, label: `Azox v${VERSION}` });
 
-  const pagesDir = resolve(projectDir, 'pages');
-  const pages = existsSync(pagesDir)
-    ? readdirSync(pagesDir).filter((file) => file.endsWith('.azox'))
-    : [];
+  const routes = listRoutes(projectDir);
 
   checks.push({
-    ok: pages.length > 0,
-    label: `pages/ (${pages.length} page${pages.length === 1 ? '' : 's'})`,
-    detail: pages.length ? null : 'No .azox pages found — run "azox create <name>" to start one',
+    ok: routes.length > 0,
+    label: `${PAGES_DIR}/ (${routes.length} page${routes.length === 1 ? '' : 's'})`,
+    detail: routes.length
+      ? null
+      : `No .azox pages found — run "azox create <name>" to start one`,
   });
 
   // Fully resolve every page — parse it and its components — so a
   // broken reference surfaces here rather than halfway through a
   // build.
-  for (const page of pages) {
-    const pagePath = resolve(pagesDir, page);
-
+  for (const route of routes) {
     try {
-      resolveComponents(parseAzox(readFileSync(pagePath, 'utf8')), pagePath);
-      checks.push({ ok: true, label: `pages/${page}` });
+      resolveComponents(parseAzox(readFileSync(route.sourcePath, 'utf8')), route.sourcePath);
+      checks.push({ ok: true, label: `${route.url}`, note: `${PAGES_DIR}/${route.name}.azox` });
     } catch (error) {
-      checks.push({ ok: false, label: `pages/${page}`, detail: error.message });
+      checks.push({
+        ok: false,
+        label: `${route.url}`,
+        note: `${PAGES_DIR}/${route.name}.azox`,
+        detail: error.message,
+      });
     }
   }
 
   console.log(BANNER);
   console.log('');
   for (const check of checks) {
-    console.log(`  ${check.ok ? '✓' : '✗'} ${check.label}`);
+    console.log(`  ${check.ok ? '✓' : '✗'} ${check.label}${check.note ? `  (${check.note})` : ''}`);
     if (check.detail) console.log(`      ${check.detail}`);
   }
   console.log('');
@@ -64,4 +66,3 @@ export function doctorCommand() {
     console.log('Everything looks good.');
   }
 }
-

@@ -3,13 +3,14 @@
 // result. `azox compile` runs it once; `azox dev` runs it on every
 // change, so it returns data rather than printing.
 
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 
 import { parseAzox } from './compiler/parser.js';
 import { resolveComponents } from './compiler/resolveComponents.js';
 import { compileToModule } from './compiler/compileToJs.js';
 import { renderToHtml } from './renderer/renderToHtml.js';
+import { collectRoutes, findRoute } from './routes.js';
 import { ROOT_DIR } from './meta.js';
 import { BuildError } from './buildError.js';
 
@@ -18,32 +19,20 @@ import { BuildError } from './buildError.js';
 // point at it. That also makes the output self-contained: any static
 // host can serve it with no install step.
 const RUNTIME_FILENAME = 'azox-runtime.js';
-const RUNTIME_SPECIFIER = `./${RUNTIME_FILENAME}`;
 
 export const PAGES_DIR = 'pages';
 export const BUILD_DIR = '.azox/build';
 
 export { BuildError };
 
-export function listPages(projectDir) {
-  const dir = resolve(projectDir, PAGES_DIR);
-  if (!existsSync(dir)) return [];
-
-  return readdirSync(dir)
-    .filter((file) => file.endsWith('.azox'))
-    .map((file) => basename(file, '.azox'))
-    .sort();
+export function listRoutes(projectDir) {
+  return collectRoutes(resolve(projectDir, PAGES_DIR));
 }
 
 // transformHtml lets the dev server inject its live-reload snippet
 // without that ever reaching a production build.
-export function buildPage(projectDir, pageName, { transformHtml } = {}) {
-  const sourcePath = resolve(projectDir, PAGES_DIR, `${pageName}.azox`);
-
-  if (!existsSync(sourcePath)) {
-    throw new BuildError(`page "${PAGES_DIR}/${pageName}.azox" not found in ${projectDir}`);
-  }
-
+export function buildRoute(projectDir, route, { transformHtml } = {}) {
+  const { sourcePath, name } = route;
   const parsed = parseAzox(readFileSync(sourcePath, 'utf8'));
 
   // Components are inlined here, before either output is produced, so
@@ -56,53 +45,73 @@ export function buildPage(projectDir, pageName, { transformHtml } = {}) {
     html = renderToHtml(ast, buildServerScope(ast.script));
   } catch (error) {
     if (!(error instanceof BuildError)) throw error;
-    throw new BuildError(`in ${PAGES_DIR}/${pageName}.azox: ${error.message}`);
+    throw new BuildError(`in ${PAGES_DIR}/${name}.azox: ${error.message}`);
   }
 
-  const outDir = resolve(projectDir, BUILD_DIR);
+  const buildRoot = resolve(projectDir, BUILD_DIR);
+  const outDir = resolve(buildRoot, route.outputDir);
   mkdirSync(outDir, { recursive: true });
 
-  const clientPath = resolve(outDir, `${pageName}.client.js`);
+  const clientPath = resolve(outDir, 'page.client.js');
 
   // Client pass: the same AST becomes a hydration module that wires
   // signals straight to DOM nodes once it runs in the browser.
+  // The runtime lives at the build root, so a nested page reaches it
+  // through its own prefix ("../", "../../", …).
+  const runtimeSpecifier = `${route.assetPrefix}${RUNTIME_FILENAME}`;
+
   const clientModule = rewriteRuntimeImports(
     compileToModule(ast, {
       sourcePath,
       outPath: clientPath,
-      runtimeSpecifier: RUNTIME_SPECIFIER,
-    })
+      runtimeSpecifier,
+    }),
+    runtimeSpecifier
   );
 
-  assertValidJavaScript(clientModule, pageName);
+  assertValidJavaScript(clientModule, name);
   writeFileSync(clientPath, clientModule, 'utf8');
 
-  const runtimePath = resolve(outDir, RUNTIME_FILENAME);
+  // One runtime at the build root, shared by every page.
+  const runtimePath = resolve(buildRoot, RUNTIME_FILENAME);
   copyFileSync(resolve(ROOT_DIR, 'core/reactivity/signal.js'), runtimePath);
 
-  let document = wrapDocument(html, pageName, projectTitle(projectDir));
+  let document = wrapDocument(html, projectTitle(projectDir));
   if (transformHtml) document = transformHtml(document);
 
-  const htmlPath = resolve(outDir, `${pageName}.html`);
+  const htmlPath = resolve(buildRoot, route.htmlPath);
   writeFileSync(htmlPath, document, 'utf8');
 
-  return { sourcePath, htmlPath, clientPath, runtimePath };
+  return { ...route, htmlPath, clientPath, runtimePath };
 }
 
 export function buildAll(projectDir, options) {
-  const pages = listPages(projectDir);
+  const routes = listRoutes(projectDir);
 
-  if (!pages.length) {
+  if (!routes.length) {
     throw new BuildError(
       `no .azox pages found in ${PAGES_DIR}/ — run "azox create <name>" to start one`
     );
   }
 
-  return pages.map((page) => buildPage(projectDir, page, options));
+  return routes.map((route) => buildRoute(projectDir, route, options));
 }
 
-function rewriteRuntimeImports(code) {
-  return code.replace(/(['"])azox(?:\/reactivity)?\1/g, `'${RUNTIME_SPECIFIER}'`);
+// Builds a single page by route name or URL.
+export function buildPage(projectDir, pageName, options) {
+  const route = findRoute(listRoutes(projectDir), pageName);
+
+  if (!route) {
+    throw new BuildError(`page "${PAGES_DIR}/${pageName}.azox" not found in ${projectDir}`);
+  }
+
+  return buildRoute(projectDir, route, options);
+}
+
+// Rewrites the bare specifier a page's own <script> uses to the same
+// path the compiler emitted for the runtime import.
+function rewriteRuntimeImports(code, runtimeSpecifier) {
+  return code.replace(/(['"])azox(?:\/reactivity)?\1/g, `'${runtimeSpecifier}'`);
 }
 
 // A compiler must never write output it knows is broken. Parsing the
@@ -183,7 +192,9 @@ function declaredNames(script) {
   return names;
 }
 
-function wrapDocument(bodyHtml, pageName, title) {
+// The client module sits next to the page's index.html, so the src is
+// the same for every route regardless of how deep it is.
+function wrapDocument(bodyHtml, title) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -193,7 +204,7 @@ function wrapDocument(bodyHtml, pageName, title) {
 </head>
 <body>
 <div data-azox-root>${bodyHtml}</div>
-<script type="module" src="./${pageName}.client.js"></script>
+<script type="module" src="./page.client.js"></script>
 </body>
 </html>
 `;

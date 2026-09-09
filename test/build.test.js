@@ -5,7 +5,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,12 +47,22 @@ after(() => {
   rmSync(projectDir, { recursive: true, force: true });
 });
 
-test('compile writes html, client module and runtime', () => {
+test('compile reports the routes it built', () => {
   const output = azox(['compile']);
 
+  assert.match(output, /Built 1 page/);
   assert.match(output, /index\.html/);
-  assert.match(output, /index\.client\.js/);
-  assert.match(output, /azox-runtime\.js/);
+});
+
+test('compile writes the html, client module and runtime', () => {
+  azox(['compile']);
+
+  for (const file of ['index.html', 'page.client.js', 'azox-runtime.js']) {
+    assert.ok(
+      existsSync(join(projectDir, '.azox/build', file)),
+      `expected .azox/build/${file} to exist`
+    );
+  }
 });
 
 test('server-rendered html contains the initial state', () => {
@@ -74,7 +84,7 @@ test('page title comes from the project name', () => {
 // specifiers, producing two module instances with unlinked signals.
 test('every runtime import resolves to the single copied runtime', () => {
   azox(['compile']);
-  const client = readFileSync(join(projectDir, '.azox/build/index.client.js'), 'utf8');
+  const client = readFileSync(join(projectDir, '.azox/build/page.client.js'), 'utf8');
 
   const specifiers = [...client.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
   assert.ok(specifiers.length >= 2, 'expected runtime imports in the output');
@@ -111,7 +121,7 @@ test('compiled page is reactive when executed', async () => {
     createTextNode: (data) => ({ data }),
   };
 
-  const modulePath = join(projectDir, '.azox/build/index.client.js');
+  const modulePath = join(projectDir, '.azox/build/page.client.js');
   const { render } = await import(`file://${modulePath}`);
 
   const root = render(new El('div'));
@@ -271,7 +281,7 @@ test('a component prop stays reactive through the boundary', async () => {
     createDocumentFragment: () => new El('#fragment'),
   };
 
-  const modulePath = join(projectDir, '.azox/build/index.client.js');
+  const modulePath = join(projectDir, '.azox/build/page.client.js');
   const { render } = await import(`file://${modulePath}?component-reactivity`);
 
   const root = render(new El('div'));
@@ -290,9 +300,10 @@ test('compile builds every page when no --page is given', () => {
   try {
     const output = azox(['compile']);
 
-    assert.match(output, /index\.azox/);
-    assert.match(output, /second\.azox/);
-    assert.match(readFileSync(join(projectDir, '.azox/build/second.html'), 'utf8'), /Second/);
+    assert.match(output, /Built 2 pages/);
+    assert.match(output, /^\s+\/\s/m, 'the root route should be listed');
+    assert.match(output, /\/second/);
+    assert.match(readFileSync(join(projectDir, '.azox/build/second/index.html'), 'utf8'), /Second/);
   } finally {
     rmSync(join(projectDir, 'pages/second.azox'), { force: true });
   }
