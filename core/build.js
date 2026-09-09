@@ -17,6 +17,7 @@ import { parseAzox } from './compiler/parser.js';
 import { resolveComponents } from './compiler/resolveComponents.js';
 import { compileToModule } from './compiler/compileToJs.js';
 import { renderToHtml } from './renderer/renderToHtml.js';
+import { escapeHtml } from './compiler/html.js';
 import { collectRoutes, findRoute } from './routes.js';
 import { createNodeResolver } from './nodeResolver.js';
 import { ROOT_DIR } from './meta.js';
@@ -281,9 +282,3 @@ function indent(block) {
     .join('\n');
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}

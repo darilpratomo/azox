@@ -6,8 +6,7 @@
 // top of this markup.
 
 import { BuildError } from '../buildError.js';
-
-const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link']);
+import { VOID_TAGS, escapeHtml } from '../compiler/html.js';
 
 export function renderToHtml(ast, scope) {
   return renderNode(ast.markup, scope);
@@ -69,10 +68,3 @@ function evalExpr(expr, scope) {
   }
 }
 
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

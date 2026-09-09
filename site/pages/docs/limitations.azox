@@ -1,0 +1,127 @@
+<head>
+  <title>Limitations — Azox</title>
+  <meta name="description" content="What Azox does not do yet, stated plainly, so you can judge whether it fits." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/limitations" />
+
+    <main class="doc-body">
+      <h1>Limitations</h1>
+      <p class="lede">
+        Azox is at v0.1.0. This page lists what it does not do, so you can
+        decide whether it fits your project rather than finding out halfway
+        through building one.
+      </p>
+
+      <h2>Components cannot hold state</h2>
+      <p>
+        A component takes props and renders markup. It cannot declare its own
+        signals or logic. Because components are inlined into their caller,
+        anything declared inside one would share the caller's scope and could
+        collide with it, so the compiler rejects it outright rather than
+        producing a subtle bug.
+      </p>
+      <p>
+        <strong>Workaround:</strong> keep state in the page and pass it down as
+        props. Reactivity crosses the boundary intact.
+      </p>
+
+      <h2>No control flow in markup</h2>
+      <p>
+        There is no <code>if</code>, <code>each</code> or <code>for</code>
+        block. A list cannot be rendered from an array, and a section cannot be
+        conditionally shown.
+      </p>
+      <p>
+        <strong>Workaround:</strong> a ternary inside an expression covers
+        simple cases — <code>class={'{'}active() ? 'on' : 'off'{'}'}</code> —
+        but there is no way to repeat markup. This is the largest gap, and the
+        most likely thing to change next.
+      </p>
+
+      <h2>No dynamic routes</h2>
+      <p>
+        Every route is a file that exists at build time. There is no
+        <code>[slug].azox</code>, and no way to generate pages from data.
+      </p>
+
+      <h2>No client-side routing</h2>
+      <p>
+        Links are ordinary page loads. There is no client router, no prefetching
+        and no view transitions. Each page does arrive as server-rendered HTML.
+      </p>
+
+      <h2>Hydration replaces the markup</h2>
+      <p>
+        The client module clears the server-rendered root and rebuilds it,
+        rather than adopting the existing nodes. Content is present before
+        JavaScript runs, which is what matters for search engines and slow
+        connections, but this is not true hydration and there is a brief
+        rebuild on load.
+      </p>
+
+      <h2>No shared layout</h2>
+      <p>
+        Every page repeats its own <code>&lt;head&gt;</code> block, and
+        components cannot contribute to the document head. A navigation
+        component can be shared; a stylesheet link cannot.
+      </p>
+
+      <h2>No CSS pipeline</h2>
+      <p>
+        Files in <code>public/</code> are copied as-is. Nothing is bundled,
+        minified, scoped or hashed. There is no scoped-styles feature: a
+        component's styles are global like any other CSS.
+      </p>
+
+      <h2>Expressions are evaluated during the build</h2>
+      <p>
+        Server rendering runs a page's <code>&lt;script&gt;</code> block
+        through <code>new Function</code>. That is fine for project source you
+        wrote, which is the same assumption any template engine's server step
+        makes — but never point a build at <code>.azox</code> content submitted
+        by someone else.
+      </p>
+
+      <h2>Small syntax gaps</h2>
+      <ul>
+        <li>A page needs exactly one root element; there are no fragments</li>
+        <li>Attribute expressions cannot contain a raw <code>&gt;</code> outside a string</li>
+        <li>There is no <code>bind:</code> shorthand for two-way inputs</li>
+      </ul>
+
+      <h2>What does work</h2>
+      <p>
+        The parts that exist are tested and behave predictably: signals,
+        effects and computed values; components with props and slots; slots
+        containing further components; file-based routing at any depth; server
+        rendering with escaping; the dev server with live reload; and a build
+        that runs on any static host.
+      </p>
+
+      <div class="note">
+        <p>
+          Every one of these gaps is a deliberate stopping point rather than an
+          oversight. Follow
+          <a href="https://github.com/darilpratomo/azox">the repository</a> to
+          see what lands next.
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <Footer />
+</div>

@@ -1,0 +1,138 @@
+<head>
+  <title>Routing — Azox</title>
+  <meta name="description" content="File-based routing: how pages/ becomes URLs, and what the build emits." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/routing" />
+
+    <main class="doc-body">
+      <h1>Routing</h1>
+      <p class="lede">
+        The layout of <code>pages/</code> is the routing table. There is no
+        router to configure and no route file to keep in sync.
+      </p>
+
+      <h2>Files to URLs</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>URL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>pages/index.azox</code></td>
+              <td><code>/</code></td>
+            </tr>
+            <tr>
+              <td><code>pages/about.azox</code></td>
+              <td><code>/about</code></td>
+            </tr>
+            <tr>
+              <td><code>pages/blog/index.azox</code></td>
+              <td><code>/blog</code></td>
+            </tr>
+            <tr>
+              <td><code>pages/blog/first-post.azox</code></td>
+              <td><code>/blog/first-post</code></td>
+            </tr>
+            <tr>
+              <td><code>pages/docs/guide/setup.azox</code></td>
+              <td><code>/docs/guide/setup</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        A file named <code>index</code> takes the name of its directory rather
+        than adding a segment, so <code>blog/index.azox</code> is
+        <code>/blog</code> and not <code>/blog/index</code>. Directories can
+        nest as deeply as you like.
+      </p>
+
+      <h2>What the build emits</h2>
+      <p>
+        Each route becomes a directory containing an <code>index.html</code>.
+        That is what makes clean URLs work everywhere: serving
+        <code>index.html</code> for a directory is universal behaviour, so no
+        rewrite rules are needed on any host.
+      </p>
+
+      <CodeBlock label=".azox/build/"><text>index.html                    /
+page.client.js
+azox-runtime.js               shared by every page
+
+about/
+├── index.html                /about
+└── page.client.js
+
+blog/
+├── index.html                /blog
+├── page.client.js
+└── first-post/
+    ├── index.html            /blog/first-post
+    └── page.client.js</text></CodeBlock>
+
+      <p>
+        The runtime is copied once, at the build root, and every page imports
+        it through a relative path matching its own depth.
+      </p>
+
+      <h2>Linking between pages</h2>
+      <p>
+        Plain <code>&lt;a&gt;</code> tags with absolute paths. There is no
+        client-side router in this version, so each navigation is a real page
+        load — which also means each page arrives as server-rendered HTML.
+      </p>
+
+      <CodeBlock label="links"><text><a href="/">Home</a>
+<a href="/about">About</a>
+<a href="/blog/first-post">First post</a></text></CodeBlock>
+
+      <h2>Building one page</h2>
+      <p>By file name or by URL, whichever reads better:</p>
+
+      <CodeBlock label="terminal"><text>azox compile --page=blog/first-post
+azox compile --page=/blog/first-post</text></CodeBlock>
+
+      <h2>Ignored files</h2>
+      <p>
+        Anything that is not a <code>.azox</code> file is skipped, as are
+        dot-directories. Only pages become routes.
+      </p>
+
+      <div class="note">
+        <p>
+          Dynamic routes such as <code>[slug].azox</code> are not supported
+          yet. Every route is a file that exists at build time. See
+          <a href="/docs/limitations">limitations</a>.
+        </p>
+      </div>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/styling">Styling &amp; assets</a></li>
+        <li><a href="/docs/deploy">Deployment</a></li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

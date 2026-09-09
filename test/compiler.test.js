@@ -99,9 +99,25 @@ test('leaves bare specifiers untouched for the resolver', () => {
   assert.match(code, /from 'azox\/reactivity'/);
 });
 
-test('generated module hydrates into the SSR root', () => {
-  const code = compile('<div>x</div>');
+test('a page with bindings hydrates into the SSR root', () => {
+  const code = compile('<div>{count()}</div>');
   assert.match(code, /querySelector\('\[data-azox-root\]'\)/);
+});
+
+test('a page with a listener hydrates too', () => {
+  const code = compile('<button on:click={go}>x</button>');
+  assert.match(code, /querySelector\('\[data-azox-root\]'\)/);
+});
+
+// A fully static page is already finished when it arrives. Rebuilding
+// it would waste work and, worse, detach nodes that other scripts on
+// the page may be holding a reference to.
+test('a static page does not touch the DOM on load', () => {
+  const code = compile('<div>just text</div>');
+
+  assert.doesNotMatch(code, /innerHTML = ''/);
+  assert.doesNotMatch(code, /querySelector\('\[data-azox-root\]'\)/);
+  assert.match(code, /export function render/, 'render is still exported');
 });
 
 test('element ids restart on each compile so output is deterministic', () => {

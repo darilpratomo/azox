@@ -1,0 +1,200 @@
+<head>
+  <title>CLI reference — Azox</title>
+  <meta name="description" content="Every Azox command and flag: create, dev, compile, doctor." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/cli" />
+
+    <main class="doc-body">
+      <h1>CLI reference</h1>
+      <p class="lede">
+        The package on npm is <code>azoxjs</code>; the command it installs is
+        <code>azox</code>. Argument parsing is hand-written — there is no
+        Commander or Yargs behind it.
+      </p>
+
+      <h2>Commands</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>azox create &lt;name&gt;</code></td>
+              <td>Scaffold a new project</td>
+            </tr>
+            <tr>
+              <td><code>azox dev</code></td>
+              <td>Serve the project, rebuilding on every change</td>
+            </tr>
+            <tr>
+              <td><code>azox compile</code></td>
+              <td>Build every page</td>
+            </tr>
+            <tr>
+              <td><code>azox doctor</code></td>
+              <td>Check the toolchain and the project</td>
+            </tr>
+            <tr>
+              <td><code>azox -v</code></td>
+              <td>Print the version</td>
+            </tr>
+            <tr>
+              <td><code>azox help</code></td>
+              <td>List commands</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>azox create</h2>
+
+      <CodeBlock label="terminal"><text>azox create my-app</text></CodeBlock>
+
+      <p>
+        Creates a directory with a page, a second page to show routing, a
+        component, a <code>package.json</code> and a <code>.gitignore</code>.
+        It refuses to overwrite an existing directory.
+      </p>
+
+      <h2>azox dev</h2>
+
+      <CodeBlock label="terminal"><text>azox dev
+azox dev --port=5000
+azox dev --host=0.0.0.0</text></CodeBlock>
+
+      <p>
+        Builds, serves at <code>http://localhost:4321</code>, watches
+        <code>pages/</code>, and reloads the browser on save. If the port is
+        taken it steps forward to the next free one rather than failing.
+      </p>
+
+      <p>
+        When a page fails to compile, the browser is served the error instead
+        of stale output, so a broken edit never looks like it silently did not
+        apply. It recovers on its own once the page is fixed.
+      </p>
+
+      <div class="note">
+        <p>
+          Live reload uses Server-Sent Events rather than WebSockets. Reload is
+          a one-way signal, so there is no handshake implementation to carry —
+          which is how the dev server stays dependency-free.
+        </p>
+      </div>
+
+      <h2>azox compile</h2>
+
+      <CodeBlock label="terminal"><text>azox compile
+azox compile --page=about
+azox compile --page=/blog/first-post</text></CodeBlock>
+
+      <p>
+        Builds into <code>.azox/build/</code>. With no flag it builds every
+        page; <code>--page</code> takes a file name or a URL.
+      </p>
+
+      <p>
+        The compiler parses the JavaScript it generated before writing it. A
+        malformed expression fails the build, naming the page, rather than
+        producing a file that breaks in the browser console.
+      </p>
+
+      <h2>azox doctor</h2>
+
+      <CodeBlock label="terminal"><text>$ azox doctor
+
+Azox Framework v0.1.0 - The Sound of Future Web
+
+  ✓ Node 22.11.0
+  ✓ Azox v0.1.0
+  ✓ pages/ (2 pages)
+  ✓ /  (pages/index.azox)
+  ✓ /about  (pages/about.azox)
+
+Everything looks good.</text></CodeBlock>
+
+      <p>
+        Checks the Node version, lists the route map, and fully resolves every
+        page — including its components — so a broken reference surfaces before
+        a build rather than during one. Exits non-zero when something is wrong.
+      </p>
+
+      <h2>Flags</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Applies to</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--page=&lt;name&gt;</code></td>
+              <td><code>compile</code></td>
+              <td>Build one page, by file name or URL</td>
+            </tr>
+            <tr>
+              <td><code>--port=&lt;n&gt;</code></td>
+              <td><code>dev</code></td>
+              <td>Port to serve on (default 4321)</td>
+            </tr>
+            <tr>
+              <td><code>--host=&lt;addr&gt;</code></td>
+              <td><code>dev</code></td>
+              <td>Host to bind (default localhost)</td>
+            </tr>
+            <tr>
+              <td><code>-v</code>, <code>--version</code></td>
+              <td>any</td>
+              <td>Print the version</td>
+            </tr>
+            <tr>
+              <td><code>-h</code>, <code>--help</code></td>
+              <td>any</td>
+              <td>Show help</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Using it as a library</h2>
+      <p>
+        The compiler is importable, and works without a filesystem — which is
+        how the <a href="/playground">playground</a> compiles in your browser.
+      </p>
+
+      <CodeBlock label="programmatic use"><text>import { parseAzox, compileToModule } from 'azoxjs/compiler';
+import { signal, effect, computed } from 'azoxjs/reactivity';</text></CodeBlock>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/deploy">Deployment</a></li>
+        <li><a href="/docs/limitations">Limitations</a></li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

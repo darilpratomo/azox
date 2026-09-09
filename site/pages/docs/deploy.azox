@@ -1,0 +1,159 @@
+<head>
+  <title>Deployment — Azox</title>
+  <meta name="description" content="Deploy an Azox site to Vercel, Netlify, Cloudflare Pages or GitHub Pages." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/deploy" />
+
+    <main class="doc-body">
+      <h1>Deployment</h1>
+      <p class="lede">
+        A build is plain HTML, JavaScript and assets. There is no server to
+        run, no adapter to install, and no rewrite rules to configure.
+      </p>
+
+      <h2>The build</h2>
+
+      <CodeBlock label="terminal"><text>npm run build     # or: azox compile</text></CodeBlock>
+
+      <p>
+        Everything lands in <code>.azox/build/</code>. Point any static host at
+        that directory.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Build command</td>
+              <td><code>npm run build</code></td>
+            </tr>
+            <tr>
+              <td>Output directory</td>
+              <td><code>.azox/build</code></td>
+            </tr>
+            <tr>
+              <td>Node version</td>
+              <td>18 or newer</td>
+            </tr>
+            <tr>
+              <td>Install command</td>
+              <td><code>npm install</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Vercel</h2>
+      <p>
+        Import the repository, then set the output directory. Azox is not a
+        framework Vercel detects, so choose <em>Other</em> as the preset.
+      </p>
+
+      <CodeBlock label="vercel.json"><text>{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".azox/build"
+}</text></CodeBlock>
+
+      <h2>Netlify</h2>
+
+      <CodeBlock label="netlify.toml"><text>[build]
+  command = "npm run build"
+  publish = ".azox/build"</text></CodeBlock>
+
+      <h2>Cloudflare Pages</h2>
+      <p>
+        Set the build command to <code>npm run build</code> and the output
+        directory to <code>.azox/build</code>. No framework preset is needed.
+      </p>
+
+      <h2>GitHub Pages</h2>
+
+      <CodeBlock label=".github/workflows/deploy.yml"><text>name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .azox/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/deploy-pages@v4</text></CodeBlock>
+
+      <div class="note">
+        <p>
+          On GitHub Pages a project site is served from a subpath
+          (<code>/repo-name/</code>), which breaks the absolute asset paths
+          Azox emits. Use a custom domain, or a user site
+          (<code>username.github.io</code>), to serve from the root.
+        </p>
+      </div>
+
+      <h2>Any static host</h2>
+      <p>
+        The output has no special requirements. Upload it to S3, nginx, or
+        anything else that serves files. Clean URLs work because every route is
+        a directory with an <code>index.html</code>, which every static server
+        already handles.
+      </p>
+
+      <CodeBlock label="local preview"><text>cd .azox/build
+python3 -m http.server 4321</text></CodeBlock>
+
+      <h2>Checklist</h2>
+      <ul>
+        <li>Commit <code>.gitignore</code> with <code>.azox/</code> in it — the build is generated</li>
+        <li>Run <code>azox doctor</code> before deploying to catch broken references</li>
+        <li>Use absolute paths (<code>/style.css</code>) for assets</li>
+      </ul>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/limitations">Limitations</a> — what Azox does not do yet</li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

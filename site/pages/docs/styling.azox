@@ -1,0 +1,129 @@
+<head>
+  <title>Styling &amp; assets — Azox</title>
+  <meta name="description" content="Stylesheets, fonts, images and the page head block in Azox." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/styling" />
+
+    <main class="doc-body">
+      <h1>Styling &amp; assets</h1>
+      <p class="lede">
+        Azox has no CSS pipeline. Files in <code>public/</code> are copied to
+        the build root untouched, and a page links to them the way any HTML
+        page would.
+      </p>
+
+      <h2>The public directory</h2>
+
+      <CodeBlock label="project"><text>my-app/
+├── pages/
+│   └── index.azox
+└── public/
+    ├── style.css        →  /style.css
+    ├── logo.svg         →  /logo.svg
+    └── fonts/
+        └── mono.woff2   →  /fonts/mono.woff2</text></CodeBlock>
+
+      <p>
+        A file keeps the same path in source and in the built site, so a link
+        written during development is the link that ships.
+      </p>
+
+      <h2>Linking a stylesheet</h2>
+      <p>
+        Use a page's <code>&lt;head&gt;</code> block. Its contents are copied
+        into the document head verbatim.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><head>
+  <title>My app</title>
+  <meta name="description" content="Built with Azox" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<main>
+  <h1>Hello</h1>
+</main></text></CodeBlock>
+
+      <div class="note">
+        <p>
+          Use absolute paths (<code>/style.css</code>) rather than relative
+          ones. A page at <code>/blog/post</code> is served from its own
+          directory, so a relative path would resolve differently there.
+        </p>
+      </div>
+
+      <h2>Page titles</h2>
+      <p>
+        A <code>&lt;title&gt;</code> in the head block wins. Without one, the
+        title falls back to the <code>name</code> in your
+        <code>package.json</code>.
+      </p>
+
+      <h2>Applying classes</h2>
+      <p>
+        Attributes keep their HTML names — <code>class</code>, not
+        <code>className</code>. Braces make one reactive.
+      </p>
+
+      <CodeBlock label="classes"><text><div class="card">static</div>
+
+<div class={isActive() ? 'card is-active' : 'card'}>
+  reactive
+</div></text></CodeBlock>
+
+      <h2>Inline styles</h2>
+
+      <CodeBlock label="styles"><text><div style="padding: 1rem">static</div>
+
+<div style={'width: ' + progress() + '%'}>reactive</div></text></CodeBlock>
+
+      <h2>Scripts</h2>
+      <p>
+        A plain script for behaviour that is not part of any page's reactive
+        state — analytics, or a global click handler — goes in
+        <code>public/</code> and is linked from the head.
+      </p>
+
+      <CodeBlock label="head"><text><head>
+  <script src="/site.js" defer></script>
+</head></text></CodeBlock>
+
+      <div class="note note-warn">
+        <p>
+          <strong>The head block is per page.</strong> There is no shared
+          document layout in this version, so a stylesheet link is repeated in
+          each page that needs it. Components cannot contribute to the head.
+        </p>
+      </div>
+
+      <h2>What is not included</h2>
+      <p>
+        Azox does not bundle, minify, hash filenames, or process CSS. Files are
+        served as written. If you need a build step for your styles, run it
+        yourself and output into <code>public/</code>.
+      </p>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/cli">CLI reference</a></li>
+        <li><a href="/docs/deploy">Deployment</a></li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

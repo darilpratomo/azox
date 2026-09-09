@@ -85,10 +85,15 @@ function validateNoLocalState(name, component) {
   const script = component.ast.script;
   if (!script) return;
 
-  const withoutImports = script.replace(/^\s*import\s.+?;?\s*$/gm, '');
-  const withoutProps = withoutImports.replace(/const\s*\{[^}]*\}\s*=\s*props\(\)\s*;?/, '');
+  // Comments are documentation, not logic, so they are stripped
+  // before deciding whether a component declares anything.
+  const remaining = script
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/^\s*import\s.+?;?\s*$/gm, '')
+    .replace(/const\s*\{[^}]*\}\s*=\s*props\(\)\s*;?/, '');
 
-  if (withoutProps.trim()) {
+  if (remaining.trim()) {
     throw new ComponentError(
       `<${name}> declares logic beyond props(), which this version does not support. ` +
         'Components take props and render markup; keep state in the page that uses them.'

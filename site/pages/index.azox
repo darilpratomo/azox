@@ -1,0 +1,182 @@
+<head>
+  <title>Azox — The Sound of Future Web</title>
+  <meta name="description" content="A web framework with fine-grained signal reactivity and no Virtual DOM. Components compile straight to DOM operations." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../components/Nav.azox';
+  import Footer from '../components/Footer.azox';
+  import CodeBlock from '../components/CodeBlock.azox';
+  import { signal } from 'azox/reactivity';
+
+  const count = signal(0);
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <header class="hero">
+    <div class="container">
+      <span class="eyebrow">v0.1.0 · early development</span>
+      <h1>Azox<br /><span class="hero-tagline">The Sound of Future Web</span></h1>
+      <p class="hero-lede">
+        A web framework built from scratch. No Virtual DOM, no diffing, no
+        runtime dependencies. Every binding compiles to a signal that writes
+        to exactly one DOM node.
+      </p>
+
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/docs">Get started</a>
+        <a class="btn btn-ghost" href="/playground">Try the playground</a>
+      </div>
+
+      <div class="install-line">
+        <span class="install-prompt">$</span>
+        <span>npx azoxjs create my-app</span>
+        <button class="copy-btn" data-copy-text="npx azoxjs create my-app">Copy</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="section container">
+    <h2 class="section-title">See it work</h2>
+    <p class="section-lede">
+      The counter below is a real Azox page, compiled with the same
+      compiler you install. Clicking updates one text node — nothing
+      else on this page is touched.
+    </p>
+
+    <div class="demo">
+      <div class="demo-stage">
+        <span class="demo-readout">{count()}</span>
+        <div class="hero-actions">
+          <button class="btn btn-primary" on:click={() => count.set(count() + 1)}>Add one</button>
+          <button class="btn btn-ghost" on:click={() => count.set(0)}>Reset</button>
+        </div>
+        <p class="demo-note">
+          No Virtual DOM was consulted. The effect bound to that number
+          is the only thing that ran.
+        </p>
+      </div>
+
+      <CodeBlock label="pages/index.azox"><text><script>
+  import { signal } from 'azox/reactivity';
+
+  const count = signal(0);
+</script>
+
+<span class="readout">{count()}</span>
+
+<button on:click={() => count.set(count() + 1)}>
+  Add one
+</button></text></CodeBlock>
+    </div>
+  </section>
+
+  <section class="section container">
+    <h2 class="section-title">Why it is different</h2>
+    <p class="section-lede">
+      Most frameworks re-run your component and compare the result.
+      Azox compiles the comparison away entirely.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <p class="card-icon">01</p>
+        <h3>Fine-grained by default</h3>
+        <p>
+          Each binding becomes its own effect, holding a direct reference to
+          the text node or attribute it owns. A signal change writes to that
+          node and stops.
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="card-icon">02</p>
+        <h3>Components vanish at build time</h3>
+        <p>
+          A component is inlined into its caller. There is no component
+          instance at runtime, no lifecycle, and nothing to reconcile — the
+          output matches hand-written markup.
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="card-icon">03</p>
+        <h3>Zero dependencies</h3>
+        <p>
+          The CLI, the compiler and the runtime are plain JavaScript against
+          the standard library. Nothing is pulled in behind your back.
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="card-icon">04</p>
+        <h3>Its own syntax</h3>
+        <p>
+          <code>.azox</code> files are HTML with <code>{'{'}expr{'}'}</code>
+          interpolation and <code>on:event</code> bindings. Not JSX, not a
+          template DSL to memorise.
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="card-icon">05</p>
+        <h3>Server-rendered first</h3>
+        <p>
+          Every page ships real HTML. The client module then wires up the
+          bindings on top of it, so content is there before JavaScript runs.
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="card-icon">06</p>
+        <h3>Static output, anywhere</h3>
+        <p>
+          A build is plain HTML, JS and assets with clean URLs. It works on
+          any static host with no rewrite rules or adapters.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container">
+    <h2 class="section-title">What a project looks like</h2>
+    <p class="section-lede">
+      The file layout is the routing table, and there is no configuration
+      file to learn.
+    </p>
+
+    <div class="demo">
+      <CodeBlock label="project"><text>my-app/
+├── pages/
+│   ├── index.azox      →  /
+│   ├── about.azox      →  /about
+│   └── blog/
+│       ├── index.azox  →  /blog
+│       └── first.azox  →  /blog/first
+├── components/
+│   └── Card.azox
+└── public/
+    └── style.css       →  /style.css</text></CodeBlock>
+
+      <CodeBlock label="components/Card.azox"><text><script>
+  const { title, body } = props();
+</script>
+
+<article class="card">
+  <h2>{title}</h2>
+  <p>{body}</p>
+</article></text></CodeBlock>
+    </div>
+
+    <p class="muted">
+      Read the <a href="/docs">documentation</a> to go further, or open the
+      <a href="/playground">playground</a> to compile a page in your browser.
+    </p>
+  </section>
+
+  <Footer />
+</div>

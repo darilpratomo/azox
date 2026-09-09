@@ -1,0 +1,176 @@
+<head>
+  <title>Template syntax — Azox</title>
+  <meta name="description" content="Interpolation, event handlers, dynamic attributes and literal text in .azox files." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/syntax" />
+
+    <main class="doc-body">
+      <h1>Template syntax</h1>
+      <p class="lede">
+        A <code>.azox</code> file is HTML with three additions: braces for
+        expressions, <code>on:</code> for events, and optional
+        <code>&lt;script&gt;</code> and <code>&lt;head&gt;</code> blocks.
+        It is not JSX — attributes keep their HTML names, and there is no
+        <code>className</code>.
+      </p>
+
+      <h2>File structure</h2>
+
+      <CodeBlock label="anatomy"><text><head>
+  <!-- optional: copied into the document head -->
+  <title>My page</title>
+</head>
+
+<script>
+  // optional: imports and state
+  import { signal } from 'azox/reactivity';
+  const count = signal(0);
+</script>
+
+<main>
+  <!-- the markup, exactly one root element -->
+</main></text></CodeBlock>
+
+      <div class="note">
+        <p>
+          A page needs a single root element in its markup, the way a document
+          has one <code>&lt;body&gt;</code>. Wrap siblings in a container.
+        </p>
+      </div>
+
+      <h2>Interpolation</h2>
+      <p>Braces evaluate an expression and insert the result as text.</p>
+
+      <CodeBlock label="interpolation"><text><p>Hello, {name()}</p>
+<p>Total: {price() * quantity()}</p>
+<p>{items().length} items</p></text></CodeBlock>
+
+      <p>
+        Values are escaped, so text that looks like markup is shown, not
+        interpreted.
+      </p>
+
+      <h2>Attributes</h2>
+      <p>Quoted values are static; braces make an attribute reactive.</p>
+
+      <CodeBlock label="attributes"><text><div class="card">static</div>
+
+<div class={theme()}>reactive</div>
+<img src={user().avatar} alt="Avatar" />
+<a href={'/user/' + id()}>Profile</a></text></CodeBlock>
+
+      <p>
+        A reactive attribute gets its own effect, so it updates independently
+        of everything else on the page.
+      </p>
+
+      <h2>Events</h2>
+      <p>
+        Prefix any DOM event with <code>on:</code>. The expression is used as
+        the listener directly.
+      </p>
+
+      <CodeBlock label="events"><text><button on:click={() => count.set(count() + 1)}>
+  Add one
+</button>
+
+<input on:input={(e) => name.set(e.target.value)} />
+
+<form on:submit={handleSubmit}>
+  <button type="submit">Send</button>
+</form></text></CodeBlock>
+
+      <div class="note">
+        <p>
+          Handlers can contain object literals and nested braces —
+          <code>on:click={'{'}() =&gt; user.set({'{'} name: 'Ada' {'}'}){'}'}</code>
+          parses correctly.
+        </p>
+      </div>
+
+      <h2>Literal text</h2>
+      <p>
+        To show markup or braces as-is — a code sample, for instance — wrap it
+        in <code>&lt;text&gt;</code>. Nothing inside is parsed as markup or
+        interpolated.
+      </p>
+
+      <CodeBlock label="literal text"><text><pre><text><button on:click={handler}>Not parsed</button></text></pre></text></CodeBlock>
+
+      <p>This documentation is written in Azox and uses it for every snippet.</p>
+
+      <h2>Comments</h2>
+
+      <CodeBlock label="comments"><text><!-- an HTML comment, kept in the output -->
+
+<script>
+  // a JavaScript comment, stripped from the output
+</script></text></CodeBlock>
+
+      <h2>Reference</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Syntax</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>{'{'}expr{'}'}</code></td>
+              <td>Insert the value of an expression, escaped</td>
+            </tr>
+            <tr>
+              <td><code>attr={'{'}expr{'}'}</code></td>
+              <td>A reactive attribute</td>
+            </tr>
+            <tr>
+              <td><code>attr="value"</code></td>
+              <td>A static attribute</td>
+            </tr>
+            <tr>
+              <td><code>on:event={'{'}fn{'}'}</code></td>
+              <td>Attach a DOM event listener</td>
+            </tr>
+            <tr>
+              <td><code>&lt;Capitalised /&gt;</code></td>
+              <td>A component</td>
+            </tr>
+            <tr>
+              <td><code>&lt;slot /&gt;</code></td>
+              <td>Where a component places its children</td>
+            </tr>
+            <tr>
+              <td><code>&lt;text&gt;…&lt;/text&gt;</code></td>
+              <td>Literal content, never parsed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/components">Components</a> — splitting a page up</li>
+        <li><a href="/docs/routing">Routing</a> — turning files into URLs</li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

@@ -4,12 +4,11 @@
 // job is narrow — turn markup + bindings into signal-driven DOM ops.
 
 import { BuildError } from '../buildError.js';
+import { VOID_TAGS } from './html.js';
 
 // Extends BuildError so a malformed page is reported as the user's
 // problem, not as an Azox crash.
 export class ParseError extends BuildError {}
-
-const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link']);
 
 // A capitalised tag is a component, the way a lowercase one is an
 // HTML element. That keeps the distinction visible in the markup

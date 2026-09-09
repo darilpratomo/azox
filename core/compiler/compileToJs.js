@@ -25,6 +25,14 @@ export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
   let script = dropComponentImports(ast.script);
   if (rewriteImports) script = rewriteImports(script);
 
+  // A page with no bindings and no listeners has nothing to hydrate:
+  // the server-rendered markup is already the finished page. Leaving
+  // it alone avoids a pointless rebuild, and avoids destroying nodes
+  // that other scripts on the page may be holding.
+  const isStatic = !statements.some(
+    (line) => line.startsWith('effect(') || line.includes('.addEventListener(')
+  );
+
   return `
 import { effect } from '${runtimeSpecifier}';
 ${script}
@@ -34,7 +42,19 @@ ${statements.map((line) => '  ' + line).join('\n')}
   mount.appendChild(${rootVar});
   return ${rootVar};
 }
+${isStatic ? staticNote() : hydrateBlock()}`.trimStart();
+}
 
+function staticNote() {
+  return `
+// This page has no bindings and no listeners, so the server-rendered
+// markup is already complete and is left untouched. render() is
+// exported for anyone who wants to mount it somewhere else.
+`;
+}
+
+function hydrateBlock() {
+  return `
 // Hydrate: the SSR markup is already on the page, so clear it and
 // mount the reactive version in its place.
 if (typeof document !== 'undefined') {
@@ -42,7 +62,7 @@ if (typeof document !== 'undefined') {
   mount.innerHTML = '';
   render(mount);
 }
-`.trimStart();
+`;
 }
 
 function emitNode(node, statements, fallbackVar) {

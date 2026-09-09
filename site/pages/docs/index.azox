@@ -1,0 +1,137 @@
+<head>
+  <title>Getting started — Azox</title>
+  <meta name="description" content="Install Azox, create a project, and understand what the build produces." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs" />
+
+    <main class="doc-body">
+      <h1>Getting started</h1>
+      <p class="lede">
+        Azox compiles <code>.azox</code> files into server-rendered HTML plus a
+        small module that wires up signal bindings in the browser.
+      </p>
+
+      <div class="note">
+        <p>
+          <strong>Early development.</strong> Azox is at v0.1.0. It works end
+          to end, but the API can still change. See
+          <a href="/docs/limitations">limitations</a> for what it does not do yet.
+        </p>
+      </div>
+
+      <h2>Requirements</h2>
+      <p>Node 18 or newer. Nothing else — Azox has no dependencies.</p>
+
+      <h2>Create a project</h2>
+
+      <CodeBlock label="terminal"><text>npx azoxjs create my-app
+cd my-app
+npm install
+npm run dev</text></CodeBlock>
+
+      <p>
+        The dev server starts at <code>http://localhost:4321</code>, rebuilds
+        when you save, and reloads the browser.
+      </p>
+
+      <div class="note">
+        <p>
+          The npm package is <code>azoxjs</code>, but the command it installs is
+          <code>azox</code>. The short name was already blocked on npm.
+        </p>
+      </div>
+
+      <h2>What you get</h2>
+
+      <CodeBlock label="my-app/"><text>my-app/
+├── package.json
+├── pages/
+│   ├── index.azox        →  /
+│   └── about.azox        →  /about
+├── components/
+│   └── Counter.azox
+└── public/               copied to the build root</text></CodeBlock>
+
+      <p>
+        There is no configuration file. The folder layout <em>is</em> the
+        configuration: pages become routes, and <code>public/</code> is copied
+        as-is.
+      </p>
+
+      <h2>Your first page</h2>
+      <p>
+        A page is markup, with an optional <code>&lt;script&gt;</code> block for
+        state and an optional <code>&lt;head&gt;</code> block for document
+        metadata.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><head>
+  <title>My app</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<script>
+  import { signal } from 'azox/reactivity';
+
+  const count = signal(0);
+</script>
+
+<main>
+  <h1>Hello</h1>
+
+  <button on:click={() => count.set(count() + 1)}>
+    Clicked {count()} times
+  </button>
+</main></text></CodeBlock>
+
+      <p>
+        <code>signal(0)</code> creates a reactive value. Reading it as
+        <code>count()</code> inside markup binds that spot in the DOM to it —
+        and only that spot.
+      </p>
+
+      <h2>Build for production</h2>
+
+      <CodeBlock label="terminal"><text>npm run build</text></CodeBlock>
+
+      <p>The output lands in <code>.azox/build/</code>:</p>
+
+      <CodeBlock label=".azox/build/"><text>index.html            the / route
+page.client.js        its bindings
+azox-runtime.js       shared by every page
+about/
+├── index.html        the /about route
+└── page.client.js
+style.css             copied from public/</text></CodeBlock>
+
+      <p>
+        That directory is a complete static site. Every route is a directory
+        with an <code>index.html</code>, so clean URLs work on any host
+        without rewrite rules. See <a href="/docs/deploy">deployment</a>.
+      </p>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/reactivity">Reactivity</a> — signals, effects and derived values</li>
+        <li><a href="/docs/syntax">Template syntax</a> — interpolation, events, attributes</li>
+        <li><a href="/docs/components">Components</a> — props and slots</li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

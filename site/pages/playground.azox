@@ -1,0 +1,89 @@
+<head>
+  <title>Playground — Azox</title>
+  <meta name="description" content="Write Azox in your browser and see it compile and run, using the same compiler the CLI uses." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+  <script src="/playground.js" type="module"></script>
+</head>
+
+<script>
+  import Nav from '../components/Nav.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container" style="padding-top: 2rem">
+    <h1 style="margin-bottom: 0.4rem">Playground</h1>
+    <p class="muted" style="max-width: 62ch">
+      This runs the real Azox compiler in your browser — the same code the CLI
+      uses, not a reimplementation. Edit either file and the preview rebuilds.
+    </p>
+
+    <div class="pg">
+      <div class="pg-pane">
+        <div class="pg-head">
+          <div class="pg-tabs">
+            <button class="pg-tab" data-tab="page" data-active="true">index.azox</button>
+            <button class="pg-tab" data-tab="component">Card.azox</button>
+            <button class="pg-tab" data-tab="output">compiled</button>
+          </div>
+          <div style="display:flex; gap:0.3rem">
+            <button class="copy-btn" data-copy>Copy</button>
+            <button class="copy-btn" data-download="index.azox">Download</button>
+            <button class="copy-btn" data-reset>Reset</button>
+          </div>
+        </div>
+
+        <textarea
+          class="pg-editor"
+          data-editor="page"
+          data-pane="page"
+          spellcheck="false"
+          autocapitalize="off"
+          autocorrect="off"
+        ></textarea>
+
+        <textarea
+          class="pg-editor"
+          data-editor="component"
+          data-pane="component"
+          spellcheck="false"
+          autocapitalize="off"
+          autocorrect="off"
+          hidden
+        ></textarea>
+
+        <pre class="pg-editor" data-pane="output" data-output hidden></pre>
+
+        <div class="pg-error" data-error hidden></div>
+      </div>
+
+      <div class="pg-pane">
+        <div class="pg-head">
+          <span>preview</span>
+        </div>
+        <iframe
+          class="pg-preview"
+          data-preview
+          title="Playground preview"
+          sandbox="allow-scripts"
+        ></iframe>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top: 1.5rem">
+      <p>
+        The <strong>compiled</strong> tab shows the JavaScript Azox generates.
+        Notice that each binding becomes its own <code>effect</code> holding a
+        reference to one node — that is the whole update mechanism.
+      </p>
+    </div>
+
+    <p class="muted" style="margin-bottom: 3rem">
+      Components in this version take props and render markup; state lives in
+      the page. See <a href="/docs/components">components</a> and
+      <a href="/docs/limitations">limitations</a>.
+    </p>
+  </div>
+</div>

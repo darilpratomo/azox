@@ -1,0 +1,183 @@
+<head>
+  <title>Reactivity — Azox</title>
+  <meta name="description" content="Signals, effects and computed values: how Azox updates the DOM without a Virtual DOM." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/reactivity" />
+
+    <main class="doc-body">
+      <h1>Reactivity</h1>
+      <p class="lede">
+        Azox has three primitives: <code>signal</code>, <code>effect</code> and
+        <code>computed</code>. Everything reactive is built from them, and the
+        whole runtime is about fifty lines.
+      </p>
+
+      <h2>signal</h2>
+      <p>
+        A signal holds a value and remembers who read it. Call it to read;
+        call <code>.set()</code> to write.
+      </p>
+
+      <CodeBlock label="signals"><text>import { signal } from 'azox/reactivity';
+
+const count = signal(0);
+
+count();          // 0
+count.set(5);     // write a value
+count.set(n => n + 1);  // or derive from the current one
+count();          // 6</text></CodeBlock>
+
+      <p>
+        Reading is a function call rather than a property. That is what lets a
+        signal know it was read: there is no proxy and no getter interception
+        involved.
+      </p>
+
+      <h3>peek</h3>
+      <p>
+        <code>peek()</code> reads without subscribing. Use it when you need the
+        current value but do not want the surrounding effect to re-run on
+        change.
+      </p>
+
+      <CodeBlock label="peek"><text>effect(() => {
+  console.log(count.peek());  // reads, but creates no dependency
+});
+
+count.set(1);  // the effect above does not re-run</text></CodeBlock>
+
+      <h2>effect</h2>
+      <p>
+        An effect runs immediately, and again whenever a signal it read has
+        changed. Dependencies are collected while it runs, so nothing is
+        declared by hand.
+      </p>
+
+      <CodeBlock label="effects"><text>import { signal, effect } from 'azox/reactivity';
+
+const first = signal('Ada');
+const last = signal('Lovelace');
+
+effect(() => {
+  console.log(first(), last());
+});
+// logs immediately: Ada Lovelace
+
+first.set('Grace');
+// logs: Grace Lovelace</text></CodeBlock>
+
+      <div class="note">
+        <p>
+          Setting a signal to a value it already holds does nothing. Effects
+          only re-run on an actual change.
+        </p>
+      </div>
+
+      <h2>computed</h2>
+      <p>A derived signal, recomputed when its sources change.</p>
+
+      <CodeBlock label="computed"><text>import { signal, computed } from 'azox/reactivity';
+
+const price = signal(20);
+const quantity = signal(3);
+
+const total = computed(() => price() * quantity());
+
+total();            // 60
+quantity.set(4);
+total();            // 80</text></CodeBlock>
+
+      <h2>How this reaches the DOM</h2>
+      <p>
+        This is where Azox differs from a Virtual DOM framework. A binding in
+        your markup compiles into an effect that closes over one specific DOM
+        node.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><script>
+  import { signal } from 'azox/reactivity';
+  const count = signal(0);
+</script>
+
+<p>Count: {count()}</p></text></CodeBlock>
+
+      <p>becomes, roughly:</p>
+
+      <CodeBlock label="compiled output"><text>const _el0 = document.createElement("p");
+const _el1 = document.createTextNode('');
+
+effect(() => { _el1.data = "Count: " + String(count()); });
+
+_el0.appendChild(_el1);</text></CodeBlock>
+
+      <p>
+        When <code>count</code> changes, that one effect runs and assigns to
+        <code>_el1.data</code>. No component re-runs, no tree is rebuilt, and
+        nothing is compared. The cost of an update is the cost of the
+        assignment.
+      </p>
+
+      <h2>What this means in practice</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>You might expect</th>
+              <th>In Azox</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Component re-renders on state change</td>
+              <td>Nothing re-renders; the bound node is written to</td>
+            </tr>
+            <tr>
+              <td>Memoisation to avoid wasted renders</td>
+              <td>Not needed — there are no wasted renders to avoid</td>
+            </tr>
+            <tr>
+              <td>Dependency arrays</td>
+              <td>Dependencies are tracked as the effect runs</td>
+            </tr>
+            <tr>
+              <td>Keys to help a diff</td>
+              <td>No diff exists</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note note-warn">
+        <p>
+          <strong>Signals must be read inside markup or an effect to be
+          reactive.</strong> Writing <code>{'{'}count.peek(){'}'}</code>, or
+          copying the value into a plain variable first, produces a one-time
+          read that never updates.
+        </p>
+      </div>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/syntax">Template syntax</a> — where bindings can appear</li>
+        <li><a href="/docs/components">Components</a> — passing signals across boundaries</li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

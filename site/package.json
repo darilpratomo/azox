@@ -1,0 +1,13 @@
+{
+  "name": "azox-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "azox.dev — built with Azox",
+  "scripts": {
+    "prebuild": "node build-playground.mjs",
+    "build": "node ../bin/azox.js compile",
+    "predev": "node build-playground.mjs",
+    "dev": "node ../bin/azox.js dev"
+  }
+}

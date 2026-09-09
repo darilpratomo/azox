@@ -1,0 +1,196 @@
+<head>
+  <title>Components — Azox</title>
+  <meta name="description" content="Props, slots, and why Azox components disappear at build time." />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/components" />
+
+    <main class="doc-body">
+      <h1>Components</h1>
+      <p class="lede">
+        A component is a <code>.azox</code> file that declares what it accepts
+        and renders markup. It is resolved at build time and inlined into its
+        caller, so nothing about it exists at runtime.
+      </p>
+
+      <h2>Writing one</h2>
+      <p>
+        Declare props with <code>props()</code>, then use them in the markup.
+      </p>
+
+      <CodeBlock label="components/Card.azox"><text><script>
+  const { title, body } = props();
+</script>
+
+<article class="card">
+  <h2>{title}</h2>
+  <p>{body}</p>
+</article></text></CodeBlock>
+
+      <h2>Using one</h2>
+      <p>
+        Import it, then use it as a capitalised tag. Lowercase tags are always
+        HTML elements, so the distinction is visible in the markup.
+      </p>
+
+      <CodeBlock label="pages/index.azox"><text><script>
+  import Card from '../components/Card.azox';
+  import { signal } from 'azox/reactivity';
+
+  const count = signal(0);
+</script>
+
+<main>
+  <Card title="Static" body="Plain text" />
+  <Card title="Live" body={count()} />
+
+  <button on:click={() => count.set(count() + 1)}>Add one</button>
+</main></text></CodeBlock>
+
+      <h2>Props stay reactive</h2>
+      <p>
+        A prop passed as an expression keeps the caller's expression. In the
+        example above, clicking the button updates the text inside the second
+        card and nothing else — the component boundary changes nothing about
+        how fine-grained the update is.
+      </p>
+
+      <p>
+        A prop passed as a plain string compiles to static text with no effect
+        attached at all, so constants cost nothing.
+      </p>
+
+      <h2>Slots</h2>
+      <p>
+        <code>&lt;slot /&gt;</code> is where the children nested inside the tag
+        are placed.
+      </p>
+
+      <CodeBlock label="components/Layout.azox"><text><script>
+  const { heading } = props();
+</script>
+
+<section>
+  <header><h1>{heading}</h1></header>
+  <slot />
+</section></text></CodeBlock>
+
+      <CodeBlock label="pages/index.azox"><text><script>
+  import Layout from '../components/Layout.azox';
+  import Card from '../components/Card.azox';
+</script>
+
+<Layout heading="My site">
+  <Card title="Nested" body="Components work inside slots too" />
+  <p>Any markup can go here.</p>
+</Layout></text></CodeBlock>
+
+      <h2>Undeclared props are rejected</h2>
+      <p>
+        Passing something a component never declared is almost always a typo,
+        and silently dropping it hides the mistake. The compiler stops instead:
+      </p>
+
+      <CodeBlock label="error"><text>Azox: <Card> was given "subtitle", which it does not
+declare. It accepts: title, body.</text></CodeBlock>
+
+      <h2>Components are presentational</h2>
+      <div class="note note-warn">
+        <p>
+          <strong>A component cannot declare its own state in this version.</strong>
+          Because it is inlined into its caller, anything it declared would
+          share the caller's scope and could collide with it. That is rejected
+          with an explicit error rather than producing a subtle bug.
+        </p>
+      </div>
+
+      <p>Keep state in the page, and pass it down:</p>
+
+      <CodeBlock label="pattern"><text><!-- components/Counter.azox: display only -->
+<script>
+  const { label, value } = props();
+</script>
+
+<p>{label}: {value}</p>
+
+
+<!-- pages/index.azox: owns the state -->
+<script>
+  import Counter from '../components/Counter.azox';
+  import { signal } from 'azox/reactivity';
+
+  const count = signal(0);
+</script>
+
+<main>
+  <Counter label="Clicks" value={count()} />
+  <button on:click={() => count.set(count() + 1)}>Add</button>
+</main></text></CodeBlock>
+
+      <h2>What the compiler produces</h2>
+      <p>
+        The markup is inlined, so the emitted code is what you would have
+        written by hand. There is no component instance, no lifecycle, and
+        nothing to reconcile.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Naming</td>
+              <td>Capitalised tag is a component, lowercase is HTML</td>
+            </tr>
+            <tr>
+              <td>Importing</td>
+              <td>A normal import statement, pointing at a <code>.azox</code> file</td>
+            </tr>
+            <tr>
+              <td>Props</td>
+              <td>Declared with <code>props()</code>; undeclared ones are an error</td>
+            </tr>
+            <tr>
+              <td>Missing prop</td>
+              <td>Renders as <code>undefined</code>, not a crash</td>
+            </tr>
+            <tr>
+              <td>Events</td>
+              <td><code>on:</code> attributes on a component are not treated as props</td>
+            </tr>
+            <tr>
+              <td>Cycles</td>
+              <td>Detected at build time, with the component named</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/routing">Routing</a> — files to URLs</li>
+        <li><a href="/docs/styling">Styling &amp; assets</a> — CSS, fonts and images</li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>
