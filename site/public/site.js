@@ -53,8 +53,53 @@ document.addEventListener('click', (event) => {
   if (source) copyText(source, button);
 });
 
-// Scroll-in animation is handled entirely in CSS with a scroll-driven
-// animation, so nothing here needs to run for the page to be readable.
+// Scroll-in animation is handled entirely in CSS, so nothing here
+// needs to run for the page to be readable.
+
+// A light that follows the pointer across a card. Purely decorative:
+// the CSS defaults to a centred position, so a card looks correct
+// before this runs and if it never runs at all.
+//
+// Skipped on coarse pointers, where there is no hover to follow, and
+// when the visitor has asked for less motion.
+const wantsMotion = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const hasFinePointer = window.matchMedia?.('(pointer: fine)').matches ?? false;
+
+if (wantsMotion && hasFinePointer) {
+  let queued = null;
+
+  // Coalesced into one frame: pointermove fires far more often than
+  // the screen refreshes, and writing a custom property on every
+  // event would be wasted work.
+  const apply = () => {
+    if (!queued) return;
+    const { card, x, y } = queued;
+    queued = null;
+
+    card.style.setProperty('--mx', `${x}%`);
+    card.style.setProperty('--my', `${y}%`);
+  };
+
+  document.addEventListener(
+    'pointermove',
+    (event) => {
+      const card = event.target.closest?.('.card');
+      if (!card) return;
+
+      const box = card.getBoundingClientRect();
+      const wasQueued = queued !== null;
+
+      queued = {
+        card,
+        x: ((event.clientX - box.left) / box.width) * 100,
+        y: ((event.clientY - box.top) / box.height) * 100,
+      };
+
+      if (!wasQueued) requestAnimationFrame(apply);
+    },
+    { passive: true }
+  );
+}
 
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-download]');

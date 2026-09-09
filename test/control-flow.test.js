@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 
 import { parseAzox } from '../core/compiler/parser.js';
 import { compileToModule } from '../core/compiler/compileToJs.js';
+import { resolveComponents } from '../core/compiler/resolveComponents.js';
+import { createMemoryResolver } from '../core/compiler/sourceResolver.js';
 import { renderToHtml } from '../core/renderer/renderToHtml.js';
 
 const sig = (value) => {
@@ -156,6 +158,103 @@ test('values inside a loop are escaped', () => {
   );
 });
 
+/* ---------- with components ---------- */
+
+// Regression: expand() only walked node.children, but <if> keeps its
+// children in two branches — so a component inside a conditional was
+// never resolved and reached the output as a raw <Tag>.
+test('a component inside <if> is resolved', () => {
+  const ast = resolveComponents(
+    parseAzox(`<script>
+  import C from './C.azox';
+</script>
+<div><if cond={ok()}><C label="shown" /></if></div>`),
+    '/index.azox',
+    createMemoryResolver({
+      '/C.azox': `<script>
+  const { label } = props();
+</script>
+<b>{label}</b>`,
+    })
+  );
+
+  assert.equal(renderToHtml(ast, { ok: sig(true) }), '<div><b>shown</b></div>');
+});
+
+// Regression: substituteProps skipped control-flow nodes, so a
+// component looping over one of its own props compiled to an
+// expression naming something that did not exist.
+test('a component can loop over one of its props', () => {
+  const ast = resolveComponents(
+    parseAzox(`<script>
+  import L from './L.azox';
+</script>
+<div><L items={rows()} /></div>`),
+    '/index.azox',
+    createMemoryResolver({
+      '/L.azox': `<script>
+  const { items } = props();
+</script>
+<ul><each item={items} as="x"><li>{x}</li></each></ul>`,
+    })
+  );
+
+  assert.equal(
+    renderToHtml(ast, { rows: sig(['a', 'b']) }),
+    '<div><ul><li>a</li><li>b</li></ul></div>'
+  );
+});
+
+test('a component can branch on one of its props', () => {
+  const ast = resolveComponents(
+    parseAzox(`<script>
+  import B from './B.azox';
+</script>
+<div><B on={flag()} /></div>`),
+    '/index.azox',
+    createMemoryResolver({
+      '/B.azox': `<script>
+  const { on } = props();
+</script>
+<p><if cond={on}>yes<else />no</if></p>`,
+    })
+  );
+
+  assert.equal(renderToHtml(ast, { flag: sig(false) }), '<div><p>no</p></div>');
+});
+
+// A loop variable shadows a prop of the same name inside the body,
+// while the list expression itself still sees the prop.
+test('a loop variable shadows a prop of the same name', () => {
+  const ast = resolveComponents(
+    parseAzox(`<script>
+  import L from './L.azox';
+</script>
+<L rows={data()} />`),
+    '/index.azox',
+    createMemoryResolver({
+      '/L.azox': `<script>
+  const { rows } = props();
+</script>
+<ul><each item={rows} as="rows"><li>{rows}</li></each></ul>`,
+    })
+  );
+
+  assert.equal(renderToHtml(ast, { data: sig(['p', 'q']) }), '<ul><li>p</li><li>q</li></ul>');
+});
+
+test('an unimported component inside control flow is still caught', () => {
+  assert.throws(
+    () =>
+      resolveComponents(
+        parseAzox('<div><if cond={x}><Missing /></if></div>'),
+        '/i.azox',
+        createMemoryResolver({})
+      ),
+    /never imported/
+  );
+});
+
 /* ---------- compiled output ---------- */
 
 test('a control block is anchored by comment nodes', () => {
@@ -171,26 +270,39 @@ test('the loop body is compiled once, not per item', () => {
   assert.match(code, /\(x\) => \{/, 'the body takes the alias as a parameter');
 });
 
+// Regression: the block used to check for a parent before reading its
+// source. An effect subscribes only to what it reads, so on the first
+// run — before anything was mounted — it returned early, subscribed to
+// nothing, and never updated again.
 test('the source is read before any early return', () => {
   const code = compile('<ul><each item={items()} as="x"><li>{x}</li></each></ul>');
 
-  const effectBody = code.slice(code.indexOf('_blocks.push'));
-  const readAt = effectBody.indexOf('const _source =');
-  const returnAt = effectBody.indexOf('if (!_parent) return;');
+  const readAt = code.indexOf('const _source =');
+  const returnAt = code.indexOf('if (!_parent) return;');
 
   assert.ok(readAt !== -1 && readAt < returnAt, 'reading first is what keeps it subscribed');
 });
 
-// Regression: blocks used to start during render, when their markers
-// had no parent yet, so they bailed out before subscribing and never
-// rendered anything at all.
-test('blocks start after the tree is mounted', () => {
+// Regression: the markers were appended to their fragment after the
+// block's effect had already run, so it found no parent. A nested
+// block made this permanent — its markers are rebuilt on every outer
+// update, so any one-time "start later" step is long past.
+test('markers are put in a fragment before the effect runs', () => {
   const code = compile('<ul><each item={items()} as="x"><li>{x}</li></each></ul>');
 
-  const mountAt = code.indexOf('mount.appendChild');
-  const startAt = code.indexOf('for (const _start of _blocks)');
+  const appendAt = code.indexOf('.append(');
+  const effectAt = code.indexOf('const _source =');
 
-  assert.ok(startAt > mountAt, 'blocks must start after the tree is in the document');
+  assert.ok(appendAt !== -1 && appendAt < effectAt, 'markers need a parent before the effect runs');
+});
+
+test('a nested block is self-contained, not deferred to mount', () => {
+  const code = compile(
+    '<div><each item={rows()} as="r"><each item={r.tags} as="t"><b>{t}</b></each></each></div>'
+  );
+
+  assert.doesNotMatch(code, /_blocks/, 'a block must not depend on a one-time mount step');
+  assert.equal((code.match(/document\.createComment/g) ?? []).length, 4, 'two blocks, two markers each');
 });
 
 test('a page with a loop is treated as reactive, not static', () => {

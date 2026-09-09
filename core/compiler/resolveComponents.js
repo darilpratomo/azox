@@ -27,6 +27,17 @@ export function resolveComponents(ast, sourcePath, resolver, seen = new Set()) {
 function expand(node, ast, sourcePath, resolver, seen) {
   if (!node || node.type === 'text') return node;
 
+  // <if> keeps its children in two branches rather than in `children`,
+  // so walking only `children` would leave components inside a
+  // conditional unresolved — they would reach the output as raw tags.
+  if (node.type === 'if') {
+    return {
+      ...node,
+      then: node.then.map((child) => expand(child, ast, sourcePath, resolver, seen)),
+      otherwise: node.otherwise.map((child) => expand(child, ast, sourcePath, resolver, seen)),
+    };
+  }
+
   const children = (node.children ?? []).map((child) =>
     expand(child, ast, sourcePath, resolver, seen)
   );
@@ -165,6 +176,31 @@ function substituteProps(node, values, slotChildren) {
     return { type: 'fragment', children: slotChildren };
   }
 
+  // Control flow holds its expression and its children outside the
+  // usual `attrs`/`children` shape, so it needs substituting by hand.
+  // Without this, a component that loops over one of its own props
+  // compiles to an expression referring to a name that does not exist.
+  if (node.type === 'each') {
+    // The list expression is evaluated outside the loop, so it still
+    // sees the props. Only the body is shadowed by the loop variable.
+    const inner = shadow(values, [node.alias, node.index]);
+
+    return {
+      ...node,
+      expr: rewrite(node.expr, values),
+      children: node.children.map((child) => substituteProps(child, inner, slotChildren)),
+    };
+  }
+
+  if (node.type === 'if') {
+    return {
+      ...node,
+      expr: rewrite(node.expr, values),
+      then: node.then.map((child) => substituteProps(child, values, slotChildren)),
+      otherwise: node.otherwise.map((child) => substituteProps(child, values, slotChildren)),
+    };
+  }
+
   const attrs = {};
   for (const [key, attr] of Object.entries(node.attrs ?? {})) {
     if (attr.kind !== 'expr' || key.startsWith('on:')) {
@@ -236,6 +272,19 @@ function asStringLiteral(expr) {
   } catch {
     return null;
   }
+}
+
+// A loop variable shadows a prop of the same name, the way a
+// parameter shadows an outer binding in JavaScript. Removing the
+// shadowed names stops the loop body from being rewritten to the
+// caller's value.
+function shadow(values, names) {
+  const shadowed = names.filter(Boolean);
+  if (!shadowed.some((name) => name in values)) return values;
+
+  const next = { ...values };
+  for (const name of shadowed) delete next[name];
+  return next;
 }
 
 // Replaces whole-word prop identifiers. Property access (obj.title)

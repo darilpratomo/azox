@@ -31,24 +31,17 @@ export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
   // that other scripts on the page may be holding.
   const isStatic = !statements.some(
     (line) =>
-      line.startsWith('effect(') ||
-      line.startsWith('_blocks.push(') ||
-      line.includes('.addEventListener(')
+      line.startsWith('effect(') || line.includes('.addEventListener(')
   );
-
-  // Control-flow blocks need their markers to be in the document
-  // before they can insert anything, so they are collected here and
-  // started once the tree is mounted.
-  const usesBlocks = statements.some((line) => line.startsWith('_blocks.push('));
 
   return `
 import { effect } from '${runtimeSpecifier}';
 ${script}
 
 export function render(mount) {
-${usesBlocks ? '  const _blocks = [];\n' : ''}${statements.map((line) => '  ' + line).join('\n')}
+${statements.map((line) => '  ' + line).join('\n')}
   mount.appendChild(${rootVar});
-${usesBlocks ? '  for (const _start of _blocks) _start();\n' : ''}  return ${rootVar};
+  return ${rootVar};
 }
 ${isStatic ? staticNote() : hydrateBlock()}`.trimStart();
 }
@@ -117,8 +110,18 @@ function emitControlBlock(statements, buildBody, sourceExpr, renderCall) {
   const end = nextId();
   const frag = nextId();
 
+  const holder = nextId();
+
   statements.push(`const ${start} = document.createComment('');`);
   statements.push(`const ${end} = document.createComment('');`);
+
+  // The markers go into their own fragment straight away, so they
+  // always have a parent to insert into. Waiting for the page to be
+  // mounted instead would break a nested block: its markers are
+  // rebuilt every time the outer block re-runs, long after any
+  // one-time mount step has passed.
+  statements.push(`const ${holder} = document.createDocumentFragment();`);
+  statements.push(`${holder}.append(${start}, ${end});`);
 
   // The body is compiled once into a function, then called as needed.
   const bodyLines = [];
@@ -133,10 +136,7 @@ function emitControlBlock(statements, buildBody, sourceExpr, renderCall) {
   statements.push(`  return _frag;`);
   statements.push(`};`);
 
-  // Deferred until the tree is mounted: the markers have no parent
-  // while the page is still being assembled, and a block cannot
-  // insert anything without one.
-  statements.push(`_blocks.push(() => effect(() => {`);
+  statements.push(`effect(() => {`);
   statements.push(`  // Read the source before anything can return early. An effect`);
   statements.push(`  // subscribes only to what it reads, so bailing out first would`);
   statements.push(`  // leave this block subscribed to nothing and never update.`);
@@ -151,13 +151,7 @@ function emitControlBlock(statements, buildBody, sourceExpr, renderCall) {
   statements.push(`  const _parent = ${end}.parentNode;`);
   statements.push(`  if (!_parent) return;`);
   for (const line of renderCall(frag, end)) statements.push(`  ${line}`);
-  statements.push(`}));`);
-
-  // Hand back a fragment holding both markers, so the caller appends
-  // this the way it appends any other node.
-  const holder = nextId();
-  statements.push(`const ${holder} = document.createDocumentFragment();`);
-  statements.push(`${holder}.append(${start}, ${end});`);
+  statements.push(`});`);
 
   return holder;
 }
