@@ -51,7 +51,13 @@ export function buildPage(projectDir, pageName, { transformHtml } = {}) {
   const ast = resolveComponents(parsed, sourcePath);
 
   // SSR pass: render initial markup without touching browser DOM APIs.
-  const html = renderToHtml(ast, buildServerScope(ast.script));
+  let html;
+  try {
+    html = renderToHtml(ast, buildServerScope(ast.script));
+  } catch (error) {
+    if (!(error instanceof BuildError)) throw error;
+    throw new BuildError(`in ${PAGES_DIR}/${pageName}.azox: ${error.message}`);
+  }
 
   const outDir = resolve(projectDir, BUILD_DIR);
   mkdirSync(outDir, { recursive: true });
@@ -60,12 +66,16 @@ export function buildPage(projectDir, pageName, { transformHtml } = {}) {
 
   // Client pass: the same AST becomes a hydration module that wires
   // signals straight to DOM nodes once it runs in the browser.
-  const clientModule = compileToModule(ast, {
-    sourcePath,
-    outPath: clientPath,
-    runtimeSpecifier: RUNTIME_SPECIFIER,
-  });
-  writeFileSync(clientPath, rewriteRuntimeImports(clientModule), 'utf8');
+  const clientModule = rewriteRuntimeImports(
+    compileToModule(ast, {
+      sourcePath,
+      outPath: clientPath,
+      runtimeSpecifier: RUNTIME_SPECIFIER,
+    })
+  );
+
+  assertValidJavaScript(clientModule, pageName);
+  writeFileSync(clientPath, clientModule, 'utf8');
 
   const runtimePath = resolve(outDir, RUNTIME_FILENAME);
   copyFileSync(resolve(ROOT_DIR, 'core/reactivity/signal.js'), runtimePath);
@@ -93,6 +103,30 @@ export function buildAll(projectDir, options) {
 
 function rewriteRuntimeImports(code) {
   return code.replace(/(['"])azox(?:\/reactivity)?\1/g, `'${RUNTIME_SPECIFIER}'`);
+}
+
+// A compiler must never write output it knows is broken. Parsing the
+// emitted module catches a malformed expression here, with the page
+// named, instead of leaving the user to find a syntax error in the
+// browser console.
+function assertValidJavaScript(code, pageName) {
+  try {
+    new Function(`return (async () => { ${stripModuleSyntax(code)} })`);
+  } catch (error) {
+    throw new BuildError(
+      `compiling ${PAGES_DIR}/${pageName}.azox produced invalid JavaScript ` +
+        `(${error.message}). This is an Azox bug — please report the page that caused it.`
+    );
+  }
+}
+
+// `new Function` cannot hold import/export statements, so they are
+// removed before the syntax check. What remains is the generated
+// body, which is where a malformed expression would land.
+function stripModuleSyntax(code) {
+  return code
+    .replace(/^\s*import\s[^;]+;?\s*$/gm, '')
+    .replace(/^\s*export\s+(?=function|const|let|class)/gm, '');
 }
 
 // Page title comes from the project's package.json name, falling back

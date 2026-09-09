@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -84,6 +84,68 @@ test('buildAll reports an empty project as a BuildError', () => {
     assert.throws(() => buildAll(empty), /no \.azox pages found/);
   } finally {
     rmSync(empty, { recursive: true, force: true });
+  }
+});
+
+// The compiler must never write JavaScript it knows is broken; the
+// failure belongs at build time, not in the browser console.
+test('a syntactically broken expression fails the build with the page named', () => {
+  const broken = mkdtempSync(join(tmpdir(), 'azox-invalid-'));
+
+  try {
+    mkdirSync(join(broken, 'pages'), { recursive: true });
+    writeFileSync(join(broken, 'pages/index.azox'), '<p>{ ( ) => }</p>');
+
+    assert.throws(() => buildPage(broken, 'index'), (error) => {
+      assert.ok(error instanceof BuildError);
+      assert.match(error.message, /pages\/index\.azox/);
+      assert.match(error.message, /not valid JavaScript/);
+      return true;
+    });
+
+    assert.equal(
+      existsSync(join(broken, '.azox/build/index.client.js')),
+      false,
+      'no output may be written when the build fails'
+    );
+  } finally {
+    rmSync(broken, { recursive: true, force: true });
+  }
+});
+
+test('an expression referencing an unknown name reports it clearly', () => {
+  const broken = mkdtempSync(join(tmpdir(), 'azox-unknown-'));
+
+  try {
+    mkdirSync(join(broken, 'pages'), { recursive: true });
+    writeFileSync(join(broken, 'pages/index.azox'), '<p>{missingVar}</p>');
+
+    assert.throws(() => buildPage(broken, 'index'), /missingVar is not defined/);
+  } finally {
+    rmSync(broken, { recursive: true, force: true });
+  }
+});
+
+test('an object literal in a handler compiles to valid JavaScript', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-literal-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    writeFileSync(
+      join(project, 'pages/index.azox'),
+      `<script>
+  import { signal } from 'azox/reactivity';
+  const user = signal({ name: 'a' });
+</script>
+<button on:click={() => user.set({ name: 'b' })}>Go</button>`
+    );
+
+    const result = buildPage(project, 'index');
+    const code = readFileSync(result.clientPath, 'utf8');
+
+    assert.match(code, /user\.set\(\{ name: 'b' \}\)/, 'the literal must survive intact');
+  } finally {
+    rmSync(project, { recursive: true, force: true });
   }
 });
 

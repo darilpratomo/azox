@@ -90,6 +90,82 @@ test('handles explicit self-closing syntax', () => {
   assert.deepEqual(markup.children[0].children, []);
 });
 
+// Regression: attribute values were matched with /\{[^}]*\}/, which
+// stops at the first "}". An object literal in a handler was silently
+// truncated, and the compiler emitted broken JavaScript while still
+// reporting success.
+test('an object literal in an attribute survives intact', () => {
+  const { markup } = parseAzox(
+    `<button on:click={() => user.set({ name: 'Changed' })}>Go</button>`
+  );
+
+  assert.equal(markup.attrs['on:click'].expr, "() => user.set({ name: 'Changed' })");
+});
+
+test('deeply nested braces in an attribute are kept', () => {
+  const { markup } = parseAzox('<div data-x={ {a: {b: {c: 1}}} }>y</div>');
+  assert.equal(markup.attrs['data-x'].expr, '{a: {b: {c: 1}}}');
+});
+
+test('a brace inside a string does not end the expression', () => {
+  const { markup } = parseAzox(`<div title={"a } b"}>x</div>`);
+  assert.equal(markup.attrs.title.expr, '"a } b"');
+});
+
+test('an escaped quote inside an expression string is handled', () => {
+  const { markup } = parseAzox(`<div title={"he said \\"hi\\""}>x</div>`);
+  assert.equal(markup.attrs.title.expr, '"he said \\"hi\\""');
+});
+
+test('a template literal with a placeholder is kept whole', () => {
+  const { markup } = parseAzox('<div title={`n: ${count()}`}>x</div>');
+  assert.equal(markup.attrs.title.expr, '`n: ${count()}`');
+});
+
+test('a ">" inside an attribute string does not end the tag', () => {
+  const { markup } = parseAzox(`<div title={"a > b"}>text</div>`);
+
+  assert.equal(markup.attrs.title.expr, '"a > b"');
+  assert.deepEqual(markup.children[0].parts, [{ kind: 'static', value: 'text' }]);
+});
+
+test('an interpolated expression may contain nested braces', () => {
+  const { markup } = parseAzox('<p>{ items.map(n => ({ v: n })).length }</p>');
+  assert.deepEqual(markup.children[0].parts, [
+    { kind: 'expr', expr: 'items.map(n => ({ v: n })).length' },
+  ]);
+});
+
+test('an interpolated string may contain a brace', () => {
+  const { markup } = parseAzox('<p>{"a } b"}</p>');
+  assert.deepEqual(markup.children[0].parts, [{ kind: 'expr', expr: '"a } b"' }]);
+});
+
+test('attributes after a complex expression are still parsed', () => {
+  const { markup } = parseAzox(
+    `<button on:click={() => set({ a: 1 })} title="tip" class="btn">Go</button>`
+  );
+
+  assert.equal(markup.attrs.title.value, 'tip');
+  assert.equal(markup.attrs.class.value, 'btn');
+});
+
+test('a value-less attribute is accepted', () => {
+  const { markup } = parseAzox('<input disabled>');
+  assert.deepEqual(markup.attrs.disabled, { kind: 'static', value: '' });
+});
+
+test('an unclosed attribute expression is reported', () => {
+  assert.throws(
+    () => parseAzox('<div title={ oops >x</div>'),
+    /is never closed|unterminated/
+  );
+});
+
+test('an unterminated quoted attribute is reported', () => {
+  assert.throws(() => parseAzox('<div title="oops>x</div>'), /unterminated|never closed/);
+});
+
 test('throws when an element is never closed', () => {
   assert.throws(() => parseAzox('<div>oops'), /<div> is never closed/);
 });

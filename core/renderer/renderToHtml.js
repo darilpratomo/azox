@@ -5,6 +5,8 @@
 // takes over in the browser and wires up live signal bindings on
 // top of this markup.
 
+import { BuildError } from '../buildError.js';
+
 const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link']);
 
 export function renderToHtml(ast, scope) {
@@ -41,8 +43,19 @@ function renderNode(node, scope) {
 
 function evalExpr(expr, scope) {
   const keys = Object.keys(scope);
-  const fn = new Function(...keys, `return (${expr});`);
-  return fn(...keys.map((k) => scope[k]));
+
+  let fn;
+  try {
+    fn = new Function(...keys, `return (${expr});`);
+  } catch (error) {
+    throw new BuildError(`{${expr}} is not valid JavaScript: ${error.message}`);
+  }
+
+  try {
+    return fn(...keys.map((key) => scope[key]));
+  } catch (error) {
+    throw new BuildError(`{${expr}} failed while rendering: ${error.message}`);
+  }
 }
 
 function escapeHtml(str) {

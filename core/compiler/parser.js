@@ -98,51 +98,158 @@ function tokenize(html) {
   return tokens;
 }
 
-// Finds the ">" that actually closes a tag, ignoring any ">" that
-// appears inside a {expr} attribute value (e.g. arrow functions
-// like `on:click={() => count.set(...)}`).
+// Finds the ">" that actually closes a tag, ignoring any ">" inside
+// a {expr} attribute value (arrow functions) or inside a string.
 function findTagEnd(html, start) {
   let depth = 0;
+  let quote = null;
+
   for (let i = start; i < html.length; i++) {
-    const ch = html[i];
-    if (ch === '{') depth++;
-    else if (ch === '}') depth--;
-    else if (ch === '>' && depth === 0) return i;
+    const char = html[i];
+
+    if (quote) {
+      if (char === '\\') i++;
+      else if (char === quote) quote = null;
+      continue;
+    }
+
+    if (depth > 0 && (char === '"' || char === "'" || char === '`')) quote = char;
+    else if (char === '{') depth++;
+    else if (char === '}') depth--;
+    else if (char === '>' && depth === 0) return i;
   }
-  throw new ParseError("Azox parse error: unterminated tag");
+
+  throw new ParseError('Azox parse error: unterminated tag');
 }
 
+// Splits a tag body into its name and attribute chunks, keeping any
+// whitespace that falls inside an expression or a quoted value.
 function splitTag(body) {
   const parts = [];
   let depth = 0;
+  let quote = null;
   let current = '';
-  for (const ch of body) {
-    if (ch === '{') depth++;
-    if (ch === '}') depth--;
-    if (ch === ' ' && depth === 0) {
+
+  for (let i = 0; i < body.length; i++) {
+    const char = body[i];
+
+    if (quote) {
+      current += char;
+      if (char === '\\') current += body[++i] ?? '';
+      else if (char === quote) quote = null;
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      current += char;
+      continue;
+    }
+
+    if (char === '{') depth++;
+    else if (char === '}') depth--;
+
+    if (/\s/.test(char) && depth === 0) {
       if (current) parts.push(current);
       current = '';
     } else {
-      current += ch;
+      current += char;
     }
   }
+
   if (current) parts.push(current);
   return parts;
 }
 
+// Scanned rather than matched with a regex: an expression can nest
+// braces (an object literal, a template literal), and no regex can
+// pair those. Getting this wrong silently truncates the expression.
 function parseAttrs(attrString) {
   const attrs = {};
-  const regex = /([\w:.-]+)=(\{[^}]*\}|"[^"]*"|'[^']*')/g;
-  let match;
-  while ((match = regex.exec(attrString))) {
-    const [, key, rawValue] = match;
-    if (rawValue.startsWith('{')) {
-      attrs[key] = { kind: 'expr', expr: rawValue.slice(1, -1).trim() };
-    } else {
-      attrs[key] = { kind: 'static', value: rawValue.slice(1, -1) };
+  let i = 0;
+
+  while (i < attrString.length) {
+    if (/\s/.test(attrString[i])) {
+      i++;
+      continue;
+    }
+
+    const nameEnd = findAttrNameEnd(attrString, i);
+    const name = attrString.slice(i, nameEnd);
+
+    if (!name) {
+      i++;
+      continue;
+    }
+
+    // A bare attribute with no value, e.g. `disabled`.
+    if (attrString[nameEnd] !== '=') {
+      attrs[name] = { kind: 'static', value: '' };
+      i = nameEnd;
+      continue;
+    }
+
+    const valueStart = nameEnd + 1;
+    const quote = attrString[valueStart];
+
+    if (quote === '"' || quote === "'") {
+      const end = attrString.indexOf(quote, valueStart + 1);
+      if (end === -1) {
+        throw new ParseError(`Azox parse error: unterminated value for attribute "${name}"`);
+      }
+      attrs[name] = { kind: 'static', value: attrString.slice(valueStart + 1, end) };
+      i = end + 1;
+      continue;
+    }
+
+    if (quote === '{') {
+      const end = findExpressionEnd(attrString, valueStart, `the {expression} for "${name}"`);
+      attrs[name] = { kind: 'expr', expr: attrString.slice(valueStart + 1, end).trim() };
+      i = end + 1;
+      continue;
+    }
+
+    throw new ParseError(
+      `Azox parse error: attribute "${name}" needs a quoted value or a {expression}`
+    );
+  }
+
+  return attrs;
+}
+
+function findAttrNameEnd(source, start) {
+  let i = start;
+  while (i < source.length && /[\w:.@-]/.test(source[i])) i++;
+  return i;
+}
+
+// Walks from the opening brace to its match, tracking nesting depth
+// and skipping over string and template literals so a brace inside
+// quotes never ends the expression.
+function findExpressionEnd(source, start, describe) {
+  let depth = 0;
+  let quote = null;
+
+  for (let i = start; i < source.length; i++) {
+    const char = source[i];
+
+    if (quote) {
+      if (char === '\\') i++;
+      else if (char === quote) quote = null;
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+    } else if (char === '{') {
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 0) return i;
     }
   }
-  return attrs;
+
+  throw new ParseError(`Azox parse error: ${describe} is never closed`);
 }
 
 function parseNode(tokens) {
@@ -182,20 +289,29 @@ function parseNode(tokens) {
   return { node: null, rest };
 }
 
-// Splits "Clicks: {count()}" into [{kind:'static', value:'Clicks: '}, {kind:'expr', expr:'count()'}]
+// Splits "Clicks: {count()}" into
+// [{kind:'static', value:'Clicks: '}, {kind:'expr', expr:'count()'}]
+//
+// Uses the same brace-depth scan as attributes, so an interpolated
+// expression may contain nested braces and strings.
 function splitInterpolation(text) {
   const parts = [];
   let i = 0;
+
   while (i < text.length) {
     const start = text.indexOf('{', i);
+
     if (start === -1) {
       parts.push({ kind: 'static', value: text.slice(i) });
       break;
     }
+
     if (start > i) parts.push({ kind: 'static', value: text.slice(i, start) });
-    const end = text.indexOf('}', start);
+
+    const end = findExpressionEnd(text, start, 'an interpolated {expression}');
     parts.push({ kind: 'expr', expr: text.slice(start + 1, end).trim() });
     i = end + 1;
   }
+
   return parts;
 }
