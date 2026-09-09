@@ -9,7 +9,7 @@ third-party CLI dependencies, no borrowed syntax from React, Vue, or
 Next.js. It compiles `.azox` components directly into fine-grained,
 signal-driven DOM updates.
 
-> Status: early development (v0.0.1). APIs are unstable and will
+> Status: early development (v0.1.0). APIs are unstable and will
 > change without notice until v1.0.
 
 ## Why Azox
@@ -127,8 +127,10 @@ error rather than quietly sharing the caller's scope.
 
 ## Getting Started
 
+The package on npm is `azoxjs`; the CLI it installs is `azox`.
+
 ```bash
-npx azox create my-app
+npx azoxjs create my-app
 cd my-app
 npm install
 npm run dev

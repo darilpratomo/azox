@@ -75,7 +75,7 @@ function projectPackageJson(name) {
         build: 'azox compile',
       },
       devDependencies: {
-        azox: `^${VERSION}`,
+        azoxjs: `^${VERSION}`,
       },
     },
     null,

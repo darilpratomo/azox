@@ -1,4 +1,4 @@
-// Public entry point for `import ... from 'azox'`.
+// Public entry point for `import ... from 'azoxjs'`.
 
 export { signal, effect, computed } from './reactivity/signal.js';
 export { parseAzox } from './compiler/parser.js';
