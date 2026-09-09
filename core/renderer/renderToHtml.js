@@ -14,6 +14,11 @@ export function renderToHtml(ast, scope) {
 function renderNode(node, scope) {
   if (!node) return '';
 
+  // A fragment (from <slot />) contributes only its children.
+  if (node.type === 'fragment') {
+    return node.children.map((child) => renderNode(child, scope)).join('');
+  }
+
   if (node.type === 'text') {
     return node.parts
       .map((part) => (part.kind === 'static' ? escapeHtml(part.value) : escapeHtml(String(evalExpr(part.expr, scope)))))

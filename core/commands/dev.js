@@ -92,7 +92,7 @@ function rebuild(projectDir) {
   try {
     return { ok: true, results: buildAll(projectDir, { transformHtml: injectLiveReload }) };
   } catch (error) {
-    if (!(error instanceof BuildError) && !/Azox parse error/.test(error.message)) throw error;
+    if (!(error instanceof BuildError)) throw error;
     return { ok: false, error };
   }
 }

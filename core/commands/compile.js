@@ -27,7 +27,7 @@ export function compileCommand({ flags }) {
       }
     }
   } catch (error) {
-    if (!(error instanceof BuildError) && !/Azox parse error/.test(error.message)) throw error;
+    if (!(error instanceof BuildError)) throw error;
 
     console.error(`Azox: ${error.message}`);
     process.exitCode = 1;

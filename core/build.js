@@ -7,9 +7,11 @@ import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readd
 import { resolve, basename } from 'node:path';
 
 import { parseAzox } from './compiler/parser.js';
+import { resolveComponents } from './compiler/resolveComponents.js';
 import { compileToModule } from './compiler/compileToJs.js';
 import { renderToHtml } from './renderer/renderToHtml.js';
 import { ROOT_DIR } from './meta.js';
+import { BuildError } from './buildError.js';
 
 // Browsers can't resolve bare specifiers like "azox/reactivity", so
 // the runtime is copied into the build and imports are rewritten to
@@ -21,7 +23,7 @@ const RUNTIME_SPECIFIER = `./${RUNTIME_FILENAME}`;
 export const PAGES_DIR = 'pages';
 export const BUILD_DIR = '.azox/build';
 
-export class BuildError extends Error {}
+export { BuildError };
 
 export function listPages(projectDir) {
   const dir = resolve(projectDir, PAGES_DIR);
@@ -42,7 +44,11 @@ export function buildPage(projectDir, pageName, { transformHtml } = {}) {
     throw new BuildError(`page "${PAGES_DIR}/${pageName}.azox" not found in ${projectDir}`);
   }
 
-  const ast = parseAzox(readFileSync(sourcePath, 'utf8'));
+  const parsed = parseAzox(readFileSync(sourcePath, 'utf8'));
+
+  // Components are inlined here, before either output is produced, so
+  // the compiler and the renderer both see plain markup.
+  const ast = resolveComponents(parsed, sourcePath);
 
   // SSR pass: render initial markup without touching browser DOM APIs.
   const html = renderToHtml(ast, buildServerScope(ast.script));

@@ -5,6 +5,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { parseAzox } from '../compiler/parser.js';
+import { resolveComponents } from '../compiler/resolveComponents.js';
 import { BANNER, VERSION } from '../meta.js';
 
 const MIN_NODE_MAJOR = 18;
@@ -33,11 +34,14 @@ export function doctorCommand() {
     detail: pages.length ? null : 'No .azox pages found — run "azox create <name>" to start one',
   });
 
-  // Parse every page so a syntax error surfaces here rather than
-  // halfway through a build.
+  // Fully resolve every page — parse it and its components — so a
+  // broken reference surfaces here rather than halfway through a
+  // build.
   for (const page of pages) {
+    const pagePath = resolve(pagesDir, page);
+
     try {
-      parseAzox(readFileSync(resolve(pagesDir, page), 'utf8'));
+      resolveComponents(parseAzox(readFileSync(pagePath, 'utf8')), pagePath);
       checks.push({ ok: true, label: `pages/${page}` });
     } catch (error) {
       checks.push({ ok: false, label: `pages/${page}`, detail: error.message });

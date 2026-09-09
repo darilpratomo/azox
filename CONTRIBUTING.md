@@ -26,6 +26,10 @@ only the standard library.
    works against the point of the project.
 3. **`.azox` is not JSX.** The syntax is HTML with `{expr}`
    interpolation and `on:event` bindings. Keep it that way.
+4. **Components resolve at build time.** A component is inlined into
+   its caller, so nothing about it exists at runtime. Anything that
+   introduces a component instance, a lifecycle, or reconciliation
+   is a different framework.
 
 ## Tests
 
@@ -45,6 +49,7 @@ The suite covers:
 | `test/reactivity.test.js` | `signal()`, `effect()`, `computed()` |
 | `test/parser.test.js` | `.azox` → AST, including malformed input |
 | `test/compiler.test.js` | the JavaScript the compiler emits |
+| `test/components.test.js` | component resolution, props, slots, errors |
 | `test/renderer.test.js` | server-rendered HTML and escaping |
 | `test/cli.test.js` | argument parsing |
 | `test/build-api.test.js` | the build pipeline as a module |

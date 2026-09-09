@@ -1,4 +1,5 @@
 <script>
+  import Counter from '../components/Counter.azox';
   import { signal } from 'azox/reactivity';
 
   const count = signal(0);
@@ -7,7 +8,10 @@
 <main class="page">
   <h1>Azox Framework</h1>
   <p>The Sound of Future Web</p>
+
+  <Counter label="Clicks" value={count()} />
+
   <button on:click={() => count.set(count() + 1)}>
-    Clicks: {count()}
+    Add one
   </button>
 </main>

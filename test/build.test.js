@@ -220,6 +220,70 @@ test('create refuses to overwrite an existing directory', () => {
   }
 });
 
+test('a component prop stays reactive through the boundary', async () => {
+  mkdirSync(join(projectDir, 'components'), { recursive: true });
+  writeFileSync(
+    join(projectDir, 'components/Readout.azox'),
+    `<script>
+  const { value } = props();
+</script>
+<span class="readout">{value}</span>`
+  );
+  writeFileSync(
+    join(projectDir, 'pages/index.azox'),
+    `<script>
+  import Readout from '../components/Readout.azox';
+  import { signal } from 'azox/reactivity';
+
+  const count = signal(0);
+</script>
+
+<main>
+  <Readout value={count()} />
+  <button on:click={() => count.set(count() + 1)}>bump</button>
+</main>
+`
+  );
+
+  azox(['compile']);
+
+  class El {
+    constructor(tag) {
+      this.tag = tag;
+      this.children = [];
+      this.listeners = {};
+    }
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    }
+    setAttribute() {}
+    addEventListener(event, fn) {
+      this.listeners[event] = fn;
+    }
+  }
+
+  globalThis.document = {
+    querySelector: () => null,
+    body: new El('body'),
+    createElement: (tag) => new El(tag),
+    createTextNode: (data) => ({ data }),
+    createDocumentFragment: () => new El('#fragment'),
+  };
+
+  const modulePath = join(projectDir, '.azox/build/index.client.js');
+  const { render } = await import(`file://${modulePath}?component-reactivity`);
+
+  const root = render(new El('div'));
+  const readout = root.children.find((child) => child.tag === 'span');
+  const button = root.children.find((child) => child.tag === 'button');
+
+  assert.equal(readout.children[0].data, '0');
+
+  button.listeners.click();
+  assert.equal(readout.children[0].data, '1', 'a signal must update text inside a component');
+});
+
 test('compile builds every page when no --page is given', () => {
   writeFileSync(join(projectDir, 'pages/second.azox'), '<main><h1>Second</h1></main>');
 

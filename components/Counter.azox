@@ -1,0 +1,5 @@
+<script>
+  const { label, value } = props();
+</script>
+
+<p class="counter">{label}: {value}</p>

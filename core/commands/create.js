@@ -37,23 +37,29 @@ export function createCommand({ positionals, flags }) {
   }
 
   mkdirSync(join(targetDir, 'pages'), { recursive: true });
-  writeFileSync(join(targetDir, 'package.json'), projectPackageJson(name), 'utf8');
-  writeFileSync(join(targetDir, 'pages', 'index.azox'), starterPage(name), 'utf8');
-  writeFileSync(join(targetDir, '.gitignore'), '.azox/\nnode_modules/\n.DS_Store\n', 'utf8');
-  writeFileSync(join(targetDir, 'README.md'), projectReadme(name), 'utf8');
+  mkdirSync(join(targetDir, 'components'), { recursive: true });
+
+  const files = {
+    'package.json': projectPackageJson(name),
+    'pages/index.azox': starterPage(name),
+    'components/Counter.azox': starterComponent(),
+    '.gitignore': '.azox/\nnode_modules/\n.DS_Store\n',
+    'README.md': projectReadme(name),
+  };
+
+  for (const [path, contents] of Object.entries(files)) {
+    writeFileSync(join(targetDir, path), contents, 'utf8');
+  }
 
   console.log(BANNER);
   console.log('');
   console.log(`Created ${name}/`);
-  console.log('  package.json');
-  console.log('  pages/index.azox');
-  console.log('  .gitignore');
-  console.log('  README.md');
+  for (const path of Object.keys(files)) console.log(`  ${path}`);
   console.log('');
   console.log('Next:');
   console.log(`  cd ${name}`);
   console.log('  npm link azox   # while Azox is not published yet');
-  console.log('  azox compile');
+  console.log('  azox dev');
 }
 
 function projectPackageJson(name) {
@@ -77,6 +83,7 @@ function projectPackageJson(name) {
 
 function starterPage(name) {
   return `<script>
+  import Counter from '../components/Counter.azox';
   import { signal } from 'azox/reactivity';
 
   const count = signal(0);
@@ -85,10 +92,24 @@ function starterPage(name) {
 <main class="page">
   <h1>${name}</h1>
   <p>Built with Azox.</p>
+
+  <Counter label="Clicks" value={count()} />
+
   <button on:click={() => count.set(count() + 1)}>
-    Clicks: {count()}
+    Add one
   </button>
 </main>
+`;
+}
+
+// Components take props and render markup. State lives in the page
+// that uses them.
+function starterComponent() {
+  return `<script>
+  const { label, value } = props();
+</script>
+
+<p class="counter">{label}: {value}</p>
 `;
 }
 

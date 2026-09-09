@@ -22,7 +22,7 @@ export function compileToModule(ast, { sourcePath, outPath, runtimeSpecifier }) 
   uid = 0;
   const statements = [];
   const rootVar = emitNode(ast.markup, statements, 'root');
-  const script = rebaseImports(ast.script, dirname(sourcePath), outPath);
+  const script = rebaseImports(dropComponentImports(ast.script), dirname(sourcePath), outPath);
 
   return `
 import { effect } from '${runtimeSpecifier}';
@@ -51,6 +51,15 @@ function emitNode(node, statements, fallbackVar) {
     return emitText(node, statements, fallbackVar);
   }
 
+  // A fragment (from <slot />) has no element of its own; it wraps
+  // its children in a DocumentFragment so they land in the parent.
+  if (node.type === 'fragment') {
+    const varName = nextId();
+    statements.push(`const ${varName} = document.createDocumentFragment();`);
+    appendChildren(varName, node.children, statements, fallbackVar);
+    return varName;
+  }
+
   const varName = nextId();
   statements.push(`const ${varName} = document.createElement(${JSON.stringify(node.name)});`);
 
@@ -58,12 +67,16 @@ function emitNode(node, statements, fallbackVar) {
     emitAttr(varName, key, attr, statements);
   }
 
-  for (const child of node.children) {
-    const childVar = emitNode(child, statements, fallbackVar);
-    if (childVar !== 'null') statements.push(`${varName}.appendChild(${childVar});`);
-  }
+  appendChildren(varName, node.children, statements, fallbackVar);
 
   return varName;
+}
+
+function appendChildren(parentVar, children, statements, fallbackVar) {
+  for (const child of children) {
+    const childVar = emitNode(child, statements, fallbackVar);
+    if (childVar !== 'null') statements.push(`${parentVar}.appendChild(${childVar});`);
+  }
 }
 
 function emitText(node, statements, fallbackVar) {
@@ -99,6 +112,12 @@ function emitAttr(varName, key, attr, statements) {
 
   // Dynamic attribute: wrap in its own effect, same fine-grained rule as text.
   statements.push(`effect(() => { ${varName}.setAttribute(${JSON.stringify(key)}, String(${attr.expr})); });`);
+}
+
+// Component imports are resolved at build time and inlined, so the
+// .azox specifier must not survive into JavaScript the browser loads.
+function dropComponentImports(script) {
+  return script.replace(/^\s*import\s+[A-Z]\w*\s+from\s+['"][^'"]+\.azox['"]\s*;?\s*$/gm, '');
 }
 
 // Rewrites every relative import specifier in the user's <script>

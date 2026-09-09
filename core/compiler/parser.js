@@ -3,7 +3,18 @@
 // and on:event bindings. This stays simple because the compiler's
 // job is narrow — turn markup + bindings into signal-driven DOM ops.
 
+import { BuildError } from '../buildError.js';
+
+// Extends BuildError so a malformed page is reported as the user's
+// problem, not as an Azox crash.
+export class ParseError extends BuildError {}
+
 const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link']);
+
+// A capitalised tag is a component, the way a lowercase one is an
+// HTML element. That keeps the distinction visible in the markup
+// itself, with no separate registration step.
+const isComponentName = (name) => /^[A-Z]/.test(name);
 
 export function parseAzox(source) {
   const scriptMatch = source.match(/<script>([\s\S]*?)<\/script>/);
@@ -13,10 +24,43 @@ export function parseAzox(source) {
   const tokens = tokenize(template);
   const { node, rest } = parseNode(tokens);
   if (rest.length) {
-    throw new Error(`Azox parse error: unexpected trailing markup near "${rest[0]?.value ?? ''}"`);
+    throw new ParseError(`Azox parse error: unexpected trailing markup near "${rest[0]?.value ?? ''}"`);
   }
 
-  return { script, markup: node };
+  return {
+    script,
+    markup: node,
+    components: parseComponentImports(script),
+    props: parsePropNames(script),
+  };
+}
+
+// Component imports are written as ordinary import statements, so an
+// editor treats them like any other module reference:
+//   import Card from '../components/Card.azox';
+function parseComponentImports(script) {
+  const imports = {};
+  const regex = /import\s+([A-Z]\w*)\s+from\s+['"]([^'"]+\.azox)['"]\s*;?/g;
+
+  let match;
+  while ((match = regex.exec(script))) {
+    imports[match[1]] = match[2];
+  }
+
+  return imports;
+}
+
+// `const { title, count } = props();` declares what a component
+// accepts. Declaring them explicitly lets the compiler reject a
+// caller that passes something the component never asked for.
+function parsePropNames(script) {
+  const match = script.match(/const\s*\{([^}]*)\}\s*=\s*props\(\)/);
+  if (!match) return [];
+
+  return match[1]
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
 }
 
 function tokenize(html) {
@@ -65,7 +109,7 @@ function findTagEnd(html, start) {
     else if (ch === '}') depth--;
     else if (ch === '>' && depth === 0) return i;
   }
-  throw new Error('Azox parse error: unterminated tag');
+  throw new ParseError("Azox parse error: unterminated tag");
 }
 
 function splitTag(body) {
@@ -112,8 +156,10 @@ function parseNode(tokens) {
 
   if (token.type === 'open') {
     const { name, attrs, selfClosing } = token;
+    const type = isComponentName(name) ? 'component' : 'element';
+
     if (selfClosing) {
-      return { node: { type: 'element', name, attrs, children: [] }, rest };
+      return { node: { type, name, attrs, children: [] }, rest };
     }
 
     const children = [];
@@ -125,12 +171,12 @@ function parseNode(tokens) {
     }
 
     if (!remaining.length) {
-      throw new Error(`Azox parse error: <${name}> is never closed`);
+      throw new ParseError(`Azox parse error: <${name}> is never closed`);
     }
 
     remaining = remaining.slice(1); // drop the matching close tag
 
-    return { node: { type: 'element', name, attrs, children }, rest: remaining };
+    return { node: { type, name, attrs, children }, rest: remaining };
   }
 
   return { node: null, rest };

@@ -31,6 +31,68 @@ the one DOM node it owns. No tree diffing, no wasted re-renders.
 </button>
 ```
 
+## Components
+
+A component is a `.azox` file that declares what it accepts and
+renders markup. Import it, then use it as a capitalised tag:
+
+```html
+<!-- components/Card.azox -->
+<script>
+  const { title, body } = props();
+</script>
+
+<article class="card">
+  <h2>{title}</h2>
+  <p>{body}</p>
+</article>
+```
+
+```html
+<!-- pages/index.azox -->
+<script>
+  import Card from '../components/Card.azox';
+  import { signal } from 'azox/reactivity';
+
+  const count = signal(0);
+</script>
+
+<main>
+  <Card title="Live" body={count()} />
+  <button on:click={() => count.set(count() + 1)}>Add one</button>
+</main>
+```
+
+Components are resolved at build time: the markup is inlined into the
+caller, so there is no component instance and no per-component
+overhead at runtime. A prop passed as an expression stays reactive
+across the boundary — clicking the button above updates the text
+inside the card and nothing else. A prop passed as a plain string
+compiles to static text with no effect attached.
+
+`<slot />` renders whatever the caller nested inside the tag:
+
+```html
+<!-- components/Layout.azox -->
+<script>
+  const { heading } = props();
+</script>
+
+<section>
+  <header>{heading}</header>
+  <slot />
+</section>
+```
+
+Declaring props with `props()` is what lets the compiler reject a
+caller that passes something the component never asked for, instead
+of dropping it silently.
+
+In this version components are presentational: they take props and
+render markup, and state lives in the page that uses them. A
+component that declares its own logic is rejected with an explicit
+error rather than quietly sharing the caller's scope.
+
 ## Getting Started
 
 Azox is not on npm yet. To try it from a local checkout:
@@ -88,13 +150,14 @@ azox/
 ├── core/
 │   ├── cli/                 argument parsing + command routing
 │   ├── commands/             built-in CLI commands
-│   ├── compiler/             .azox parser + compiler
+│   ├── compiler/             .azox parser, component resolver, compiler
 │   ├── dev/                  dev server, file watching, live reload
 │   ├── reactivity/           signal() / effect() / computed()
 │   ├── renderer/             server-side HTML rendering
 │   ├── build.js              the build pipeline, shared by commands
 │   └── meta.js               version and identity strings
-└── pages/                    example .azox pages
+├── pages/                    example .azox pages
+└── components/               example .azox components
 ```
 
 ## Tests
