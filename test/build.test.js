@@ -220,6 +220,27 @@ test('create refuses to overwrite an existing directory', () => {
   }
 });
 
+test('compile builds every page when no --page is given', () => {
+  writeFileSync(join(projectDir, 'pages/second.azox'), '<main><h1>Second</h1></main>');
+
+  try {
+    const output = azox(['compile']);
+
+    assert.match(output, /index\.azox/);
+    assert.match(output, /second\.azox/);
+    assert.match(readFileSync(join(projectDir, '.azox/build/second.html'), 'utf8'), /Second/);
+  } finally {
+    rmSync(join(projectDir, 'pages/second.azox'), { force: true });
+  }
+});
+
+test('compiled output carries no dev-server machinery', () => {
+  azox(['compile']);
+  const html = readFileSync(join(projectDir, '.azox/build/index.html'), 'utf8');
+
+  assert.doesNotMatch(html, /EventSource|__azox_reload/, 'live reload must not reach a build');
+});
+
 test('create rejects an invalid project name', () => {
   assert.throws(
     () => azox(['create', '../escape'], projectDir),

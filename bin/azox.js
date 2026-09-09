@@ -8,4 +8,11 @@ import { runCommand } from '../core/cli/router.js';
 
 const { command, positionals, flags } = parseArgs(process.argv.slice(2));
 
-runCommand(command, { positionals, flags });
+try {
+  await runCommand(command, { positionals, flags });
+} catch (error) {
+  // Anything reaching here is a bug rather than user error, so keep
+  // the stack: it's what makes the report actionable.
+  console.error(`Azox: ${error.stack ?? error.message}`);
+  process.exitCode = 1;
+}

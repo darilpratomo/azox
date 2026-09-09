@@ -5,6 +5,7 @@
 
 import { doctorCommand } from '../commands/doctor.js';
 import { compileCommand } from '../commands/compile.js';
+import { devCommand } from '../commands/dev.js';
 import { versionCommand } from '../commands/version.js';
 import { createCommand } from '../commands/create.js';
 import { helpCommand } from '../commands/help.js';
@@ -15,9 +16,14 @@ export const registry = {
     describe: 'Scaffold a new Azox project',
     examples: ['azox create my-app'],
   },
+  dev: {
+    run: devCommand,
+    describe: 'Serve the project and rebuild on every change',
+    examples: ['azox dev', 'azox dev --port=5000'],
+  },
   compile: {
     run: compileCommand,
-    describe: 'Compile a .azox page to HTML + a hydration module',
+    describe: 'Compile pages to HTML + hydration modules',
     examples: ['azox compile', 'azox compile --page=about'],
   },
   doctor: {
@@ -46,6 +52,8 @@ const FLAG_ALIASES = {
   help: 'help',
 };
 
+// Returns whatever the handler returns, so an async command (dev)
+// can be awaited by the entry point.
 export function runCommand(command, context) {
   const resolved = command ?? aliasFor(context.flags) ?? 'help';
   const entry = registry[resolved];
@@ -57,7 +65,7 @@ export function runCommand(command, context) {
     return;
   }
 
-  entry.run({ ...context, registry });
+  return entry.run({ ...context, registry });
 }
 
 function aliasFor(flags) {

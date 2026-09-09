@@ -47,6 +47,8 @@ The suite covers:
 | `test/compiler.test.js` | the JavaScript the compiler emits |
 | `test/renderer.test.js` | server-rendered HTML and escaping |
 | `test/cli.test.js` | argument parsing |
+| `test/build-api.test.js` | the build pipeline as a module |
+| `test/dev-server.test.js` | static serving, path traversal, live reload |
 | `test/build.test.js` | the CLI end to end, on real temp projects |
 
 ## Commits

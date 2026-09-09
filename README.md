@@ -41,33 +41,44 @@ cd azox
 npm link          # makes the `azox` command available
 ```
 
-Then scaffold a project:
+Then scaffold a project and start the dev server:
 
 ```bash
 azox create my-app
 cd my-app
 npm link azox     # until Azox is published
+azox dev
+```
+
+`azox dev` serves the project at `http://localhost:4321`, rebuilds on
+every save, and reloads the browser. When a page fails to compile it
+serves the error instead of stale output, then recovers on its own
+once the page is fixed.
+
+For a production build:
+
+```bash
 azox compile
 ```
 
 The build lands in `.azox/build/` as a self-contained static bundle —
-an HTML file, a compiled hydration module, and a copy of the runtime.
-Serve that directory with any static server and the page works with
-no install step:
-
-```bash
-cd .azox/build && python3 -m http.server 4321
-```
+an HTML file per page, a compiled hydration module, and a copy of the
+runtime. No dev machinery is included. Serve that directory with any
+static host and it works with no install step.
 
 ## CLI
 
 ```
 azox create <name>   Scaffold a new Azox project
-azox compile         Compile pages/index.azox (--page=<name> for others)
+azox dev             Serve the project, rebuilding on every change
+azox compile         Build every page (--page=<name> for just one)
 azox doctor          Check that the toolchain and project are healthy
 azox -v              Print the version
 azox help            Show all commands
 ```
+
+`azox dev` takes `--port=<n>` and `--host=<addr>`. If the port is
+busy it steps forward to the next free one rather than failing.
 
 ## Project Structure
 
@@ -78,8 +89,10 @@ azox/
 │   ├── cli/                 argument parsing + command routing
 │   ├── commands/             built-in CLI commands
 │   ├── compiler/             .azox parser + compiler
+│   ├── dev/                  dev server, file watching, live reload
 │   ├── reactivity/           signal() / effect() / computed()
 │   ├── renderer/             server-side HTML rendering
+│   ├── build.js              the build pipeline, shared by commands
 │   └── meta.js               version and identity strings
 └── pages/                    example .azox pages
 ```
