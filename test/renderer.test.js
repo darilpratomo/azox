@@ -37,6 +37,38 @@ test('renders void elements without a closing tag', () => {
   assert.equal(render('<div><br></div>'), '<div><br></div>');
 });
 
+// Regression: the tokenizer trimmed text outright, so the space in
+// "Read <a>this</a> for more" vanished and the words ran together.
+test('a space before an inline tag survives', () => {
+  assert.equal(
+    render('<p>Read <a href="/why">why</a> for the reasoning.</p>'),
+    '<p>Read <a href="/why">why</a> for the reasoning.</p>'
+  );
+});
+
+test('a space after an inline tag survives', () => {
+  assert.equal(render('<p>a <b>b</b> c</p>'), '<p>a <b>b</b> c</p>');
+});
+
+test('text with no space around a tag stays joined', () => {
+  assert.equal(render('<p>No<em>space</em>here</p>'), '<p>No<em>space</em>here</p>');
+});
+
+test('indentation between elements is dropped', () => {
+  assert.equal(
+    render('<div>\n  <span>a</span>\n  <span>b</span>\n</div>'),
+    '<div><span>a</span><span>b</span></div>'
+  );
+});
+
+test('whitespace just inside an element is dropped', () => {
+  assert.equal(render('<button>\n  Clicks: 0\n</button>'), '<button>Clicks: 0</button>');
+});
+
+test('runs of whitespace collapse to one space', () => {
+  assert.equal(render('<p>one     two</p>'), '<p>one two</p>');
+});
+
 test('a <text> block renders its content literally', () => {
   const html = render('<pre><text><button on:click={go}>Hi</button></text></pre>');
   assert.equal(html, '<pre>&lt;button on:click={go}&gt;Hi&lt;/button&gt;</pre>');

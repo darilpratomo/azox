@@ -49,7 +49,7 @@
           <p class="stat-label">runtime, unminified</p>
         </div>
         <div class="stat">
-          <p class="stat-value">175</p>
+          <p class="stat-value">185</p>
           <p class="stat-label">tests passing</p>
         </div>
         <div class="stat">
@@ -61,6 +61,7 @@
   </header>
 
   <section class="section container reveal">
+    <p class="section-mark">01 — Live</p>
     <h2 class="section-title">See it work</h2>
     <p class="section-lede">
       The counter below is a real Azox page, compiled with the same compiler
@@ -95,8 +96,10 @@
     </div>
   </section>
 
-  <section class="section container reveal">
-    <h2 class="section-title">The same idea, three ways</h2>
+  <section class="section section-alt reveal">
+    <div class="container">
+    <p class="section-mark">02 — Comparison</p>
+    <h2 class="section-title">The same idea, two ways</h2>
     <p class="section-lede">
       Most frameworks re-run your component and compare the result. Azox
       compiles the comparison away entirely.
@@ -135,9 +138,11 @@
       Read <a href="/why">why this matters</a> for the reasoning, or
       <a href="/docs/reactivity">the reactivity docs</a> for the mechanics.
     </p>
+    </div>
   </section>
 
   <section class="section container reveal">
+    <p class="section-mark">03 — Design</p>
     <h2 class="section-title">Why it is different</h2>
     <p class="section-lede">
       Six decisions that shape everything else about the framework.
@@ -203,7 +208,9 @@
     </div>
   </section>
 
-  <section class="section container reveal">
+  <section class="section section-alt reveal">
+    <div class="container">
+    <p class="section-mark">04 — Structure</p>
     <h2 class="section-title">What a project looks like</h2>
     <p class="section-lede">
       The file layout is the routing table, and there is no configuration file
@@ -234,7 +241,11 @@
     </div>
   </section>
 
+    </div>
+  </section>
+
   <section class="section container reveal">
+    <p class="section-mark">05 — Next</p>
     <h2 class="section-title">Where to go next</h2>
 
     <div class="grid">

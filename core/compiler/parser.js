@@ -112,12 +112,59 @@ function tokenize(html) {
     } else {
       const next = html.indexOf('<', i);
       const text = html.slice(i, next === -1 ? undefined : next);
-      if (text.trim().length) tokens.push({ type: 'text', value: text.trim() });
+      const collapsed = collapseWhitespace(text);
+      if (collapsed) tokens.push({ type: 'text', value: collapsed });
       i = next === -1 ? html.length : next;
     }
   }
 
-  return tokens;
+  return trimEdgeWhitespace(tokens);
+}
+
+// Removes the space that sits immediately inside an element — right
+// after its opening tag, or right before its closing one. Nothing sits
+// on the other side of it to be kept apart, so it is indentation
+// rather than a real space, and keeping it would pad an element's text
+// content for no visible benefit.
+function trimEdgeWhitespace(tokens) {
+  const out = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    if (token.type !== 'text') {
+      out.push(token);
+      continue;
+    }
+
+    const before = tokens[i - 1];
+    const after = tokens[i + 1];
+
+    let value = token.value;
+    if (!before || before.type === 'open') value = value.replace(/^ /, '');
+    if (!after || after.type === 'close') value = value.replace(/ $/, '');
+
+    if (value) out.push({ ...token, value });
+  }
+
+  return out;
+}
+
+// Collapses runs of whitespace to a single space, the way HTML does,
+// and drops text that is only whitespace between block-level tags.
+//
+// Trimming the edges outright — which this used to do — deletes the
+// space in "Read <a>this</a> for more", running the words together.
+// Keeping one space preserves the sentence while still discarding
+// the indentation between elements on their own lines.
+function collapseWhitespace(text) {
+  if (!text.trim()) {
+    // Whitespace containing a newline is layout indentation between
+    // elements; a space on one line is a real space between them.
+    return text.includes('\n') ? '' : ' ';
+  }
+
+  return text.replace(/\s+/g, ' ');
 }
 
 // Finds the ">" that actually closes a tag, ignoring any ">" inside
