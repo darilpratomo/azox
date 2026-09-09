@@ -1,14 +1,33 @@
 {
-  "name": "azox.dev",
+  "name": "azox",
   "version": "0.0.1",
   "description": "Azox Framework — The Sound of Future Web",
   "type": "module",
   "license": "MIT",
   "author": "Daril Pratomo <darilprtmsr@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darilpratomo/azox.git"
+  },
+  "homepage": "https://azox.dev",
+  "bugs": {
+    "url": "https://github.com/darilpratomo/azox/issues"
+  },
   "bin": {
     "azox": "./bin/azox.js"
   },
-  "main": "./core/index.js",
+  "exports": {
+    ".": "./core/index.js",
+    "./reactivity": "./core/reactivity/signal.js",
+    "./compiler": "./core/compiler/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "core",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=18.0.0"
   },
@@ -18,7 +37,10 @@
   "keywords": [
     "azox",
     "framework",
-    "cli"
-  ],
-  "dependencies": {}
+    "signals",
+    "reactivity",
+    "compiler",
+    "ssr",
+    "no-virtual-dom"
+  ]
 }

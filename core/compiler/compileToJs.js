@@ -10,19 +10,22 @@ const nextId = () => `_el${uid++}`;
 
 // sourcePath: absolute path of the .azox file being compiled.
 // outPath: absolute path of the client module being written.
-// rootDir: absolute path of the project root.
-// Import specifiers in the user's <script> are resolved relative to
-// sourcePath, then re-expressed relative to outPath, since compiled
-// output lives in a different directory (.azox/build/) than pages/.
-export function compileToModule(ast, { sourcePath, outPath, rootDir }) {
+// runtimeSpecifier: how the emitted module should import the Azox
+//   runtime — a bare "azox/reactivity" for user projects, or a
+//   relative path when compiling inside the framework itself.
+//
+// Relative import specifiers in the user's <script> are resolved
+// against sourcePath and re-expressed relative to outPath, since
+// compiled output lives in .azox/build/, not next to the page.
+// Bare specifiers are left untouched for the resolver to handle.
+export function compileToModule(ast, { sourcePath, outPath, runtimeSpecifier }) {
   uid = 0;
   const statements = [];
   const rootVar = emitNode(ast.markup, statements, 'root');
   const script = rebaseImports(ast.script, dirname(sourcePath), outPath);
-  const runtimeImport = rebaseSpecifier(resolve(rootDir, 'core/reactivity/signal.js'), outPath);
 
   return `
-import { effect } from '${runtimeImport}';
+import { effect } from '${runtimeSpecifier}';
 ${script}
 
 export function render(mount) {

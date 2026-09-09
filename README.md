@@ -31,14 +31,41 @@ the one DOM node it owns. No tree diffing, no wasted re-renders.
 
 ## Getting Started
 
+Azox is not on npm yet. To try it from a local checkout:
+
 ```bash
-node bin/azox.js test
+git clone https://github.com/darilpratomo/azox.git
+cd azox
+npm link          # makes the `azox` command available
 ```
 
-This compiles `pages/index.azox` into `.azox/build/`, producing a
-static HTML shell plus a client module that hydrates it with live
-signal bindings — no framework runtime beyond ~50 lines of reactivity
-code.
+Then scaffold a project:
+
+```bash
+azox create my-app
+cd my-app
+npm link azox     # until Azox is published
+azox compile
+```
+
+The build lands in `.azox/build/` as a self-contained static bundle —
+an HTML file, a compiled hydration module, and a copy of the runtime.
+Serve that directory with any static server and the page works with
+no install step:
+
+```bash
+cd .azox/build && python3 -m http.server 4321
+```
+
+## CLI
+
+```
+azox create <name>   Scaffold a new Azox project
+azox compile         Compile pages/index.azox (--page=<name> for others)
+azox test            Verify the toolchain end to end
+azox -v              Print the version
+azox help            Show all commands
+```
 
 ## Project Structure
 
@@ -50,7 +77,8 @@ azox/
 │   ├── commands/             built-in CLI commands
 │   ├── compiler/             .azox parser + compiler
 │   ├── reactivity/           signal() / effect() / computed()
-│   └── renderer/             server-side HTML rendering
+│   ├── renderer/             server-side HTML rendering
+│   └── meta.js               version and identity strings
 └── pages/                    example .azox pages
 ```
 

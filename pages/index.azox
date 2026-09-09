@@ -1,5 +1,5 @@
 <script>
-  import { signal } from '../core/reactivity/signal.js';
+  import { signal } from 'azox/reactivity';
 
   const count = signal(0);
 </script>
