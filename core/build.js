@@ -17,6 +17,7 @@ import { parseAzox } from './compiler/parser.js';
 import { resolveComponents } from './compiler/resolveComponents.js';
 import { compileToModule } from './compiler/compileToJs.js';
 import { renderToHtml } from './renderer/renderToHtml.js';
+import { evaluateScript } from './renderer/serverScope.js';
 import { escapeHtml } from './compiler/html.js';
 import { collectRoutes, findRoute } from './routes.js';
 import { createNodeResolver } from './nodeResolver.js';
@@ -222,36 +223,15 @@ function projectTitle(projectDir) {
 // trusted project source, not user input — the same assumption any
 // template engine's SSR step makes.
 function buildServerScope(script) {
-  // Strip imports: the server supplies its own `signal` stub rather
-  // than loading the real reactive runtime.
-  const body = script.replace(/^\s*import\s.+?;\s*$/gm, '');
+  // Strip imports: the server supplies its own primitives rather than
+  // loading the real reactive runtime.
+  const body = script.replace(/^\s*import\s.+?;?\s*$/gm, '');
 
   try {
-    const fn = new Function('signal', `${body}\nreturn { ${declaredNames(body).join(', ')} };`);
-    return fn(serverSignal);
+    return evaluateScript(body);
   } catch (error) {
     throw new BuildError(`failed to evaluate the page's <script> block: ${error.message}`);
   }
-}
-
-// SSR needs only the current value, not reactivity, so `signal()` on
-// the server is a plain boxed value.
-function serverSignal(initial) {
-  let value = initial;
-  const read = () => value;
-  read.set = (next) => {
-    value = typeof next === 'function' ? next(value) : next;
-  };
-  read.peek = () => value;
-  return read;
-}
-
-function declaredNames(script) {
-  const names = [];
-  const regex = /const\s+(\w+)\s*=/g;
-  let match;
-  while ((match = regex.exec(script))) names.push(match[1]);
-  return names;
 }
 
 // The client module sits next to the page's index.html, so the src is

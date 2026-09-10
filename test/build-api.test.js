@@ -275,6 +275,72 @@ test('a project without public/ builds fine', () => {
   }
 });
 
+// The build and the renderer each had their own idea of what a script
+// could declare, and they drifted: pages could not use computed at
+// all, and neither could see a function declaration.
+test('a page script can use computed', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-scope-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    writeFileSync(
+      join(project, 'pages/index.azox'),
+      `<script>
+  import { signal, computed } from 'azox/reactivity';
+  const n = signal(3);
+  const doubled = computed(() => n() * 2);
+</script>
+<p>{doubled()}</p>`
+    );
+
+    const [result] = buildAll(project);
+    assert.match(readFileSync(result.htmlPath, 'utf8'), /<p>6<\/p>/);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('a page script can declare a function and call it', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-scope-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    writeFileSync(
+      join(project, 'pages/index.azox'),
+      `<script>
+  function triple(x) { return x * 3; }
+</script>
+<p>{triple(3)}</p>`
+    );
+
+    const [result] = buildAll(project);
+    assert.match(readFileSync(result.htmlPath, 'utf8'), /<p>9<\/p>/);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('a page script can use let and destructuring', () => {
+  const project = mkdtempSync(join(tmpdir(), 'azox-scope-'));
+
+  try {
+    mkdirSync(join(project, 'pages'), { recursive: true });
+    writeFileSync(
+      join(project, 'pages/index.azox'),
+      `<script>
+  let name = 'Ada';
+  const { role } = { role: 'Engineer' };
+</script>
+<p>{name}: {role}</p>`
+    );
+
+    const [result] = buildAll(project);
+    assert.match(readFileSync(result.htmlPath, 'utf8'), /<p>Ada: Engineer<\/p>/);
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
 test('a parse error surfaces with the offending tag', () => {
   const broken = mkdtempSync(join(tmpdir(), 'azox-broken-'));
 

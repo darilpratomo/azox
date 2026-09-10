@@ -42,14 +42,16 @@
   --text-faint: #6b7385;
 
   /* Accents. Kept as small marks — a dot, a hairline, a highlight —
-     rather than large fields of colour. */
-  --accent: #5eead4;
-  --accent-2: #818cf8;
-  --accent-3: #f0abfc;
+     rather than large fields of colour.
+     The lime is the primary: bright enough to carry the identity,
+     used sparingly so it stays a signal rather than noise. */
+  --accent: #d4f835;
+  --accent-2: #7dd3a0;
+  --accent-3: #818cf8;
   --accent-warm: #fb923c;
-  --accent-dim: rgba(94, 234, 212, 0.12);
+  --accent-dim: rgba(212, 248, 53, 0.11);
   --gradient: linear-gradient(115deg, var(--accent), var(--accent-2));
-  --gradient-wide: linear-gradient(115deg, var(--accent), var(--accent-2) 55%, var(--accent-3));
+  --gradient-wide: linear-gradient(115deg, var(--accent), var(--accent-2) 52%, var(--accent-3));
 
   /* Syntax highlighting */
   --code-tag: #7ee3ff;
@@ -102,8 +104,8 @@ body::before {
   position: fixed;
   inset: -20%;
   background:
-    radial-gradient(42rem 28rem at 16% 4%, rgba(94, 234, 212, 0.07), transparent 64%),
-    radial-gradient(38rem 26rem at 84% 0%, rgba(129, 140, 248, 0.08), transparent 64%),
+    radial-gradient(42rem 28rem at 16% 4%, rgba(212, 248, 53, 0.06), transparent 64%),
+    radial-gradient(38rem 26rem at 84% 0%, rgba(125, 211, 160, 0.07), transparent 64%),
     radial-gradient(34rem 24rem at 55% 88%, rgba(251, 146, 60, 0.045), transparent 66%);
   pointer-events: none;
   z-index: 0;
@@ -397,10 +399,10 @@ hr {
   background: var(--gradient);
   color: #06060a;
   font-weight: 640;
-  box-shadow: 0 0 0 rgba(94, 234, 212, 0);
+  box-shadow: 0 0 0 rgba(212, 248, 53, 0);
 }
 .btn-primary:hover {
-  box-shadow: 0 10px 30px -10px rgba(94, 234, 212, 0.5);
+  box-shadow: 0 10px 30px -10px rgba(212, 248, 53, 0.42);
 }
 
 /* A highlight that crosses the button on hover. */
@@ -556,8 +558,8 @@ code {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(94, 234, 212, 0.055) 48%,
-    rgba(129, 140, 248, 0.055) 52%,
+    rgba(212, 248, 53, 0.05) 48%,
+    rgba(125, 211, 160, 0.05) 52%,
     transparent 100%
   );
   pointer-events: none;
@@ -821,11 +823,11 @@ code {
   flex-shrink: 0;
 }
 
-.card:nth-child(6n + 1) { --dot: #5eead4; }
-.card:nth-child(6n + 2) { --dot: #818cf8; }
-.card:nth-child(6n + 3) { --dot: #fb923c; }
-.card:nth-child(6n + 4) { --dot: #f0abfc; }
-.card:nth-child(6n + 5) { --dot: #a3e635; }
+.card:nth-child(6n + 1) { --dot: #d4f835; }
+.card:nth-child(6n + 2) { --dot: #7dd3a0; }
+.card:nth-child(6n + 3) { --dot: #818cf8; }
+.card:nth-child(6n + 4) { --dot: #fb923c; }
+.card:nth-child(6n + 5) { --dot: #f0abfc; }
 .card:nth-child(6n) { --dot: #38bdf8; }
 
 /* A card that is a link to somewhere else. */
