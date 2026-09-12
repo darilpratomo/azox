@@ -24,6 +24,10 @@ const MODULES = [
   'core/compiler/sourceResolver.js',
   'core/compiler/resolveComponents.js',
   'core/compiler/compileToJs.js',
+  // renderToHtml imports evaluateScript from here. Left out, every
+  // example with a stateful component failed with "evaluateScript is
+  // not defined" — which is the playground's own default example.
+  'core/renderer/serverScope.js',
   'core/renderer/renderToHtml.js',
 ];
 

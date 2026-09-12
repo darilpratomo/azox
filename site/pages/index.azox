@@ -42,11 +42,11 @@
           <p class="stat-label">dependencies</p>
         </div>
         <div class="stat">
-          <p class="stat-value">~1 KB</p>
-          <p class="stat-label">runtime, unminified</p>
+          <p class="stat-value">822 B</p>
+          <p class="stat-label">runtime, gzipped</p>
         </div>
         <div class="stat">
-          <p class="stat-value">185</p>
+          <p class="stat-value">364</p>
           <p class="stat-label">tests passing</p>
         </div>
         <div class="stat">
