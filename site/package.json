@@ -9,5 +9,6 @@
     "build": "node ../bin/azox.js compile",
     "predev": "node build-playground.mjs",
     "dev": "node ../bin/azox.js dev"
-  }
+  },
+  "router": true
 }

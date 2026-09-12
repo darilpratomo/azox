@@ -21,6 +21,7 @@
       <li><a href="/docs/control-flow" class={current === '/docs/control-flow' ? 'is-active' : ''}>Loops &amp; conditionals</a></li>
       <li><a href="/docs/components" class={current === '/docs/components' ? 'is-active' : ''}>Components</a></li>
       <li><a href="/docs/routing" class={current === '/docs/routing' ? 'is-active' : ''}>Routing</a></li>
+      <li><a href="/docs/router" class={current === '/docs/router' ? 'is-active' : ''}>Client-side routing</a></li>
       <li><a href="/docs/styling" class={current === '/docs/styling' ? 'is-active' : ''}>Styling & assets</a></li>
     </ul>
   </div>

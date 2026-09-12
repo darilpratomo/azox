@@ -1,0 +1,137 @@
+<head>
+  <title>Client-side routing — Azox</title>
+  <meta name="description" content="Opt-in navigation without a page reload, with prefetching on hover." />
+  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/site.js" defer></script>
+</head>
+
+<script>
+  import Nav from '../../components/Nav.azox';
+  import Footer from '../../components/Footer.azox';
+  import DocsNav from '../../components/DocsNav.azox';
+  import CodeBlock from '../../components/CodeBlock.azox';
+</script>
+
+<div class="shell">
+  <Nav version="0.1.0" current="docs" />
+
+  <div class="container docs">
+    <DocsNav current="/docs/router" />
+
+    <main class="doc-body">
+      <h1>Client-side routing</h1>
+      <p class="lede">
+        Turn it on and links stop reloading the page: the next document is
+        fetched, its markup swapped in, and its bindings started. Pages are
+        prefetched when the pointer reaches a link, so a click usually has
+        nothing left to wait for.
+      </p>
+
+      <h2>Turning it on</h2>
+      <p>
+        Add <code>"router": true</code> to your project's
+        <code>package.json</code>. It is off by default, because changing how
+        every link behaves is not something a project should get without
+        asking.
+      </p>
+
+      <CodeBlock label="package.json"><text>{
+  "name": "my-app",
+  "type": "module",
+  "router": true
+}</text></CodeBlock>
+
+      <p>
+        Nothing else changes. Keep writing ordinary
+        <code>&lt;a href="/about"&gt;</code> links — the router attaches
+        itself to the ones it can handle.
+      </p>
+
+      <h2>What it does</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Event</th><th>Behaviour</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pointer reaches a link</td>
+              <td>That page is fetched and held, so the click is instant</td>
+            </tr>
+            <tr>
+              <td>Click</td>
+              <td>Markup swapped, title and meta tags updated, scrolled to the top</td>
+            </tr>
+            <tr>
+              <td>Back / forward</td>
+              <td>Swapped back, with the scroll position the browser remembered</td>
+            </tr>
+            <tr>
+              <td>Anything unexpected</td>
+              <td>Falls back to a full page load, so navigation always completes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Links it leaves alone</h2>
+      <p>
+        A link is only intercepted when a plain client-side navigation is
+        clearly what was meant.
+      </p>
+
+      <CodeBlock label="left to the browser"><text><a href="https://example.com">another origin</a>
+<a href="/report.pdf" download>a download</a>
+<a href="/about" target="_blank">a new tab</a>
+<a href="#section">a spot on this page</a>
+
+<!-- and opt out explicitly wherever you need to -->
+<a href="/legacy" data-no-router>skip the router</a></text></CodeBlock>
+
+      <p>
+        Cmd-click, Ctrl-click and middle-click are left alone too, so opening
+        a link in a new tab keeps working.
+      </p>
+
+      <h2>What happens to your state</h2>
+      <div class="note note-warn">
+        <p>
+          <strong>Each page starts fresh.</strong> Navigating runs the new
+          page's module from scratch, so its signals begin at their initial
+          values. Nothing is carried across a navigation.
+        </p>
+      </div>
+
+      <p>
+        This is the honest consequence of pages being independent documents.
+        If you need a value to survive navigation, put it somewhere that
+        outlives the page — <code>sessionStorage</code>, or the URL itself.
+      </p>
+
+      <h2>Without JavaScript</h2>
+      <p>
+        Every page is server-rendered and every link is a real
+        <code>&lt;a&gt;</code>. With the script blocked or still loading, the
+        site navigates the ordinary way and nothing is missing. The router is
+        an enhancement on top of something that already works.
+      </p>
+
+      <h2>Cost</h2>
+      <p>
+        Around 2 KB, loaded once and shared by every page. It is loaded after
+        the page's own module, so a page is interactive before navigation is
+        enhanced.
+      </p>
+
+      <h2>Next</h2>
+      <ul>
+        <li><a href="/docs/routing">Routing</a> — how files become URLs</li>
+        <li><a href="/docs/deploy">Deployment</a></li>
+      </ul>
+    </main>
+  </div>
+
+  <Footer />
+</div>

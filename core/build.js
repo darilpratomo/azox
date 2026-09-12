@@ -30,6 +30,12 @@ import { BuildError } from './buildError.js';
 // host can serve it with no install step.
 const RUNTIME_FILENAME = 'azox-runtime.js';
 
+// The client-side router is opt-in, via `router: true` in the project's
+// package.json. Changing how every link behaves is not something a
+// project should get without asking, and a site of plain documents is
+// perfectly well served by ordinary navigation.
+const ROUTER_FILENAME = 'azox-router.js';
+
 export const PAGES_DIR = 'pages';
 export const PUBLIC_DIR = 'public';
 export const BUILD_DIR = '.azox/build';
@@ -89,7 +95,14 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
   const runtimePath = resolve(buildRoot, RUNTIME_FILENAME);
   copyFileSync(resolve(ROOT_DIR, 'core/reactivity/signal.js'), runtimePath);
 
-  let document = wrapDocument(html, projectTitle(projectDir), ast.head);
+  const router = routerEnabled(projectDir);
+  if (router) {
+    copyFileSync(resolve(ROOT_DIR, 'core/router/navigate.js'), resolve(buildRoot, ROUTER_FILENAME));
+  }
+
+  let document = wrapDocument(html, projectTitle(projectDir), ast.head, {
+    routerSrc: router ? `${route.assetPrefix}${ROUTER_FILENAME}` : null,
+  });
   if (transformHtml) document = transformHtml(document);
 
   const htmlPath = resolve(buildRoot, route.htmlPath);
@@ -238,8 +251,14 @@ function buildServerScope(script) {
 // the same for every route regardless of how deep it is.
 // A page's own <head> block wins over the fallback title, so a page
 // can set its own <title>, stylesheets and meta tags.
-function wrapDocument(bodyHtml, title, head = '') {
+function wrapDocument(bodyHtml, title, head = '', { routerSrc = null } = {}) {
   const hasOwnTitle = /<title>/i.test(head);
+
+  // The router is loaded after the page's own module, so a page is
+  // interactive before navigation is enhanced.
+  const router = routerSrc
+    ? `\n<script type="module">import { startRouter } from '${routerSrc}'; startRouter();</script>`
+    : '';
 
   return `<!doctype html>
 <html lang="en">
@@ -249,10 +268,24 @@ function wrapDocument(bodyHtml, title, head = '') {
 ${hasOwnTitle ? '' : `  <title>${escapeHtml(title)}</title>\n`}${head ? indent(head) + '\n' : ''}</head>
 <body>
 <div data-azox-root>${bodyHtml}</div>
-<script type="module" src="./page.client.js"></script>
+<script type="module" src="./page.client.js"></script>${router}
 </body>
 </html>
 `;
+}
+
+// Reads `router` from the project's package.json. A malformed file is
+// not this function's problem to report — the build reads it again for
+// the page title and will surface anything wrong there.
+function routerEnabled(projectDir) {
+  const pkgPath = resolve(projectDir, 'package.json');
+  if (!existsSync(pkgPath)) return false;
+
+  try {
+    return JSON.parse(readFileSync(pkgPath, 'utf8')).router === true;
+  } catch {
+    return false;
+  }
 }
 
 function indent(block) {
