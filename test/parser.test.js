@@ -166,6 +166,31 @@ test('an unterminated quoted attribute is reported', () => {
   assert.throws(() => parseAzox('<div title="oops>x</div>'), /unterminated|never closed/);
 });
 
+// Regression: text was scanned to the next "<" without regard for
+// expressions, so {a() < b()} — an ordinary comparison — was cut in
+// half and reported as an unterminated tag.
+test('a less-than inside an expression does not end the text', () => {
+  const { markup } = parseAzox('<p>{a() < b()}</p>');
+  assert.deepEqual(markup.children[0].parts, [{ kind: 'expr', expr: 'a() < b()' }]);
+});
+
+test('a less-than-or-equal is handled too', () => {
+  const { markup } = parseAzox('<p>{a() <= b()}</p>');
+  assert.deepEqual(markup.children[0].parts, [{ kind: 'expr', expr: 'a() <= b()' }]);
+});
+
+test('a template literal may contain markup', () => {
+  const { markup } = parseAzox('<p>{`<b>x</b>`}</p>');
+  assert.deepEqual(markup.children[0].parts, [{ kind: 'expr', expr: '`<b>x</b>`' }]);
+});
+
+test('a real tag after an expression is still found', () => {
+  const { markup } = parseAzox('<p>{a() < b()}<em>after</em></p>');
+
+  assert.equal(markup.children.length, 2);
+  assert.equal(markup.children[1].name, 'em');
+});
+
 test('throws when an element is never closed', () => {
   assert.throws(() => parseAzox('<div>oops'), /<div> is never closed/);
 });

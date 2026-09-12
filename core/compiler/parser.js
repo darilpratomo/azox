@@ -121,11 +121,11 @@ function tokenize(html) {
       }
       i = end + 1;
     } else {
-      const next = html.indexOf('<', i);
-      const text = html.slice(i, next === -1 ? undefined : next);
+      const next = findTextEnd(html, i);
+      const text = html.slice(i, next);
       const collapsed = collapseWhitespace(text);
       if (collapsed) tokens.push({ type: 'text', value: collapsed });
-      i = next === -1 ? html.length : next;
+      i = next;
     }
   }
 
@@ -176,6 +176,27 @@ function collapseWhitespace(text) {
   }
 
   return text.replace(/\s+/g, ' ');
+}
+
+// Finds where a run of text ends: at the next tag, but skipping over
+// any {expression} on the way.
+//
+// Stopping at the first "<" is not enough — an expression may contain
+// one, in a comparison like {a() < b()} or a template literal holding
+// markup. Cutting there truncates the expression and reports a
+// confusing error about an unterminated tag.
+function findTextEnd(html, start) {
+  for (let i = start; i < html.length; i++) {
+    if (html[i] === '<') return i;
+
+    if (html[i] === '{') {
+      // Let the expression scanner find the matching brace; it already
+      // handles nesting and strings.
+      i = findExpressionEnd(html, i, 'an interpolated {expression}');
+    }
+  }
+
+  return html.length;
 }
 
 // Finds the ">" that actually closes a tag, ignoring any ">" inside
