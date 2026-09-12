@@ -7,6 +7,12 @@ between minor versions; each such change is listed here.
 
 ### Fixed
 
+- **Hydration silently broke listeners another script had attached.**
+  Mounting replaces everything inside the root, so a button bound by a
+  plain `<script>` on the server-rendered markup came back looking
+  right and doing nothing. Hydration now dispatches `azox:navigate`
+  once it has mounted — the same event the router sends — so one
+  listener covers both cases.
 - **Inline SVG was invisible.** Elements were made with
   `createElement`, which always produces an HTML element, so an
   `<svg>` in a `.azox` page was laid out as an unknown HTML tag —

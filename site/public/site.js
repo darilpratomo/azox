@@ -129,11 +129,17 @@ document.addEventListener('click', (event) => {
 // off the screen with nothing to open them — you had to swipe the bar
 // to find them. This gives them a button and a panel.
 
-const nav = document.querySelector('[data-nav]');
-const navToggle = document.querySelector('[data-nav-toggle]');
-const navMenu = document.querySelector('[data-nav-menu]');
+function wireNav() {
+  const nav = document.querySelector('[data-nav]');
+  const navToggle = document.querySelector('[data-nav-toggle]');
+  const navMenu = document.querySelector('[data-nav-menu]');
 
-if (nav && navToggle && navMenu) {
+  if (!nav || !navToggle || !navMenu) return;
+  // Hydration and navigation both replace these nodes, so this runs
+  // again on a set that has never been bound.
+  if (navToggle.dataset.wired === 'true') return;
+  navToggle.dataset.wired = 'true';
+
   const setOpen = (open) => {
     nav.dataset.open = String(open);
     navToggle.setAttribute('aria-expanded', String(open));
@@ -165,16 +171,22 @@ if (nav && navToggle && navMenu) {
   });
 }
 
+wireNav();
+
 /* ---------- Docs navigation on small screens ---------- */
 
 // The sidebar is eleven links. Stacked above the content on a phone it
 // meant scrolling past the whole index to reach the page itself, so
 // below the breakpoint it collapses into a summary you can open.
 
-const sidebar = document.querySelector('[data-sidebar]');
-const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+function wireSidebar() {
+  const sidebar = document.querySelector('[data-sidebar]');
+  const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
 
-if (sidebar && sidebarToggle) {
+  if (!sidebar || !sidebarToggle) return;
+  if (sidebarToggle.dataset.wired === 'true') return;
+  sidebarToggle.dataset.wired = 'true';
+
   const label = sidebarToggle.querySelector('[data-sidebar-label]');
 
   const setOpen = (open) => {
@@ -188,6 +200,16 @@ if (sidebar && sidebarToggle) {
     if (event.target.closest('a')) setOpen(false);
   });
 }
+
+wireSidebar();
+
+// Hydration replaces everything inside the root, and the router does
+// the same on a navigation. Both announce it, so the controls are wired
+// again on markup that has never been bound.
+document.addEventListener('azox:navigate', () => {
+  wireNav();
+  wireSidebar();
+});
 
 /* ---------- Reveal on scroll ---------- */
 

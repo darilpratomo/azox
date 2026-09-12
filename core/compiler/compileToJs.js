@@ -383,10 +383,26 @@ function hydrateBlock() {
   return `
 // Hydrate: the SSR markup is already on the page, so clear it and
 // mount the reactive version in its place.
+//
+// Everything inside the root is replaced, so a listener another script
+// attached to server-rendered markup is discarded with it — a menu
+// button that looked right and did nothing. The event says the DOM has
+// been rebuilt, and is the same one the router dispatches after a
+// navigation, so one listener covers both.
 if (typeof document !== 'undefined') {
   const mount = document.querySelector('[data-azox-root]') ?? document.body;
   mount.innerHTML = '';
   render(mount);
+  // Guarded: the emitted module is also run against minimal DOM stubs —
+  // in tests, and anywhere rendering happens outside a browser — where
+  // CustomEvent and dispatchEvent need not exist.
+  if (typeof CustomEvent === 'function' && typeof document.dispatchEvent === 'function') {
+    document.dispatchEvent(
+      new CustomEvent('azox:navigate', {
+        detail: { url: typeof location !== 'undefined' ? location.href : null, from: null, hydrated: true },
+      })
+    );
+  }
 }
 `;
 }

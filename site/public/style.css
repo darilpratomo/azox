@@ -2121,3 +2121,52 @@ summary:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================
+   Header, tightened
+   ==========================================================
+   At 406px the bar was 114px tall: the brand stretched the full width
+   and pushed the search and menu buttons onto a second row. */
+
+@media (max-width: 859px) {
+  .nav-inner {
+    /* One row, whatever the width. The container's own vertical
+       padding was stacking on top of the bar's min-height, making the
+       header 81px where the variable says 62. */
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    padding-block: 0;
+  }
+
+  /* The brand takes the space it needs and no more, so the buttons
+     stay beside it rather than below. */
+  .brand {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-right: 0;
+  }
+
+  .brand-mark {
+    font-size: 1.05rem;
+  }
+
+  /* The version pill is the first thing to go when space is tight —
+     it repeats what the docs already say. */
+  @media (max-width: 400px) {
+    .brand-version {
+      display: none;
+    }
+  }
+
+  .nav-search,
+  .nav-toggle {
+    flex: 0 0 auto;
+  }
+
+  .nav-search {
+    /* A square, matching the menu button beside it. */
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+}

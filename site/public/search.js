@@ -4,15 +4,24 @@
 // finishes well inside a frame, so the simplest thing that works is
 // also the fastest thing available.
 
-const overlay = document.querySelector('[data-search]');
-if (overlay) {
+// The index is fetched once per page load, not once per wiring.
+let index = null;
+let loading = null;
+
+function wireSearch() {
+  const overlay = document.querySelector('[data-search]');
+  if (!overlay) return;
+
+  // Hydration and navigation both replace this markup, so the function
+  // runs again on nodes that have never been bound.
+  if (overlay.dataset.wired === 'true') return;
+  overlay.dataset.wired = 'true';
+
   const input = overlay.querySelector('[data-search-input]');
   const list = overlay.querySelector('[data-search-results]');
   const status = overlay.querySelector('[data-search-status]');
   const openers = document.querySelectorAll('[data-search-open]');
 
-  let index = null;
-  let loading = null;
   let active = -1;
   let results = [];
 
@@ -242,3 +251,6 @@ if (overlay) {
     opener.addEventListener('pointerenter', loadIndex, { once: true });
   }
 }
+
+wireSearch();
+document.addEventListener('azox:navigate', wireSearch);
