@@ -10,15 +10,21 @@ import { VOID_TAGS, escapeHtml } from '../compiler/html.js';
 import { evaluateScript } from './serverScope.js';
 
 export function renderToHtml(ast, scope) {
-  return renderNode(ast.markup, scope);
+  return renderNode(ast.markup, scope, scope);
 }
 
-function renderNode(node, scope) {
+// `outer` is the scope the surrounding markup was written in. It is
+// almost always the same as `scope`; they differ inside a component,
+// where slot content belongs to whoever wrote the tag rather than to
+// the component rendering it.
+function renderNode(node, scope, outer) {
   if (!node) return '';
 
-  // A fragment (from <slot />) contributes only its children.
+  // A fragment contributes only its children. Slot content is the one
+  // place the two scopes come apart.
   if (node.type === 'fragment') {
-    return node.children.map((child) => renderNode(child, scope)).join('');
+    const childScope = node.slot ? outer : scope;
+    return node.children.map((child) => renderNode(child, childScope, outer)).join('');
   }
 
   if (node.type === 'text') {
@@ -27,8 +33,8 @@ function renderNode(node, scope) {
 
   // Control flow is evaluated once here, so the page arrives with its
   // list already rendered rather than filling in when scripts run.
-  if (node.type === 'each') return renderEach(node, scope);
-  if (node.type === 'if') return renderIf(node, scope);
+  if (node.type === 'each') return renderEach(node, scope, outer);
+  if (node.type === 'if') return renderIf(node, scope, outer);
   if (node.type === 'scope') return renderScope(node, scope);
 
   const attrs = Object.entries(node.attrs)
@@ -41,7 +47,7 @@ function renderNode(node, scope) {
 
   if (VOID_TAGS.has(node.name)) return `<${node.name}${attrs}>`;
 
-  const inner = node.children.map((child) => renderNode(child, scope)).join('');
+  const inner = node.children.map((child) => renderNode(child, scope, outer)).join('');
   return `<${node.name}${attrs}>${inner}</${node.name}>`;
 }
 
@@ -62,14 +68,22 @@ function renderScope(node, scope) {
   const inner = { ...scope, ...declared };
   for (const [i, param] of node.params.entries()) inner[param] = args[i];
 
-  return node.children.map((child) => renderNode(child, inner)).join('');
+  // `scope` is passed on as the outer one: slot content nested in
+  // this component was written by whoever used the tag.
+  return node.children.map((child) => renderNode(child, inner, scope)).join('');
 }
 
 // Each iteration renders with the loop variable added to the scope,
 // so the body sees it the same way the compiled version does.
-function renderEach(node, scope) {
+function renderEach(node, scope, outer) {
   const items = evalExpr(node.expr, scope);
-  if (!items) return '';
+  if (items === null || items === undefined) return '';
+
+  if (typeof items[Symbol.iterator] !== 'function') {
+    throw new BuildError(
+      `<each item={${node.expr}}> needs something iterable, such as an array — got ${typeof items}`
+    );
+  }
 
   let html = '';
   let index = 0;
@@ -78,16 +92,16 @@ function renderEach(node, scope) {
     const inner = { ...scope, [node.alias]: item };
     if (node.index) inner[node.index] = index;
 
-    html += node.children.map((child) => renderNode(child, inner)).join('');
+    html += node.children.map((child) => renderNode(child, inner, outer)).join('');
     index++;
   }
 
   return html;
 }
 
-function renderIf(node, scope) {
+function renderIf(node, scope, outer) {
   const branch = evalExpr(node.expr, scope) ? node.then : node.otherwise;
-  return branch.map((child) => renderNode(child, scope)).join('');
+  return branch.map((child) => renderNode(child, scope, outer)).join('');
 }
 
 // Three kinds of text, three rules:

@@ -212,7 +212,11 @@ function substituteProps(node, values, slotChildren) {
   }
 
   if (node.type === 'element' && node.name === 'slot') {
-    return { type: 'fragment', children: slotChildren };
+    // Marked as slot content: it was written by the caller, so it
+    // must be rendered against the caller's scope rather than the
+    // component's. Without this a component's own declarations would
+    // shadow — or hide entirely — whatever the caller referenced.
+    return { type: 'fragment', slot: true, children: slotChildren };
   }
 
   // Control flow holds its expression and its children outside the

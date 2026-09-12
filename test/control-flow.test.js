@@ -158,6 +158,27 @@ test('values inside a loop are escaped', () => {
   );
 });
 
+test('a second <else /> is rejected rather than leaking as a tag', () => {
+  assert.throws(
+    () => parseAzox('<div><if cond={c}><p>a</p><else /><p>b</p><else /><p>c</p></if></div>'),
+    /only one <else \/>/
+  );
+});
+
+test('<each> over something that is not iterable is reported clearly', () => {
+  assert.throws(
+    () => render('<ul><each item={n()} as="x"><li>{x}</li></each></ul>', { n: sig(5) }),
+    /needs something iterable/
+  );
+});
+
+test('<each> over a string iterates its characters', () => {
+  assert.equal(
+    render('<ul><each item={s()} as="c"><li>{c}</li></each></ul>', { s: sig('ab') }),
+    '<ul><li>a</li><li>b</li></ul>'
+  );
+});
+
 /* ---------- with components ---------- */
 
 // Regression: expand() only walked node.children, but <if> keeps its

@@ -533,6 +533,56 @@ test('an import shared by page and component is declared once', () => {
   );
 });
 
+// Regression: slot content was rendered against the component's scope,
+// so a component's own declarations shadowed — or hid entirely —
+// whatever the caller had referenced inside the tag.
+test('slot content sees the scope it was written in', () => {
+  writeComponent(
+    'Frame.azox',
+    `<script>
+  import { signal } from 'azox/reactivity';
+  const inner = signal('IN');
+</script>
+<div>{inner()}<slot /></div>`
+  );
+
+  assert.equal(
+    renderPage(
+      `<script>
+  import Frame from '../components/Frame.azox';
+  import { signal } from 'azox/reactivity';
+  const outer = signal('OUT');
+</script>
+<Frame><b>{outer()}</b></Frame>`,
+      { outer: () => 'OUT' }
+    ),
+    '<div>IN<b>OUT</b></div>'
+  );
+});
+
+test('a component cannot shadow a name the slot content uses', () => {
+  writeComponent(
+    'Shadow.azox',
+    `<script>
+  import { signal } from 'azox/reactivity';
+  const value = signal('component');
+</script>
+<div><slot /></div>`
+  );
+
+  assert.equal(
+    renderPage(
+      `<script>
+  import Shadow from '../components/Shadow.azox';
+</script>
+<Shadow><b>{value()}</b></Shadow>`,
+      { value: () => 'caller' }
+    ),
+    '<div><b>caller</b></div>',
+    "the caller's binding must win inside its own markup"
+  );
+});
+
 test('component errors are BuildErrors, so the CLI reports them plainly', () => {
   assert.ok(new ComponentError('x') instanceof BuildError);
 });

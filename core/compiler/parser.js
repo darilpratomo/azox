@@ -383,6 +383,13 @@ function buildIf(attrs, children) {
 
   const splitAt = children.findIndex((child) => child.type === 'else');
 
+  // A second <else /> has no meaning, and silently rendering it as a
+  // literal tag — which is what happened before — hides the mistake.
+  const markers = children.filter((child) => child.type === 'else').length;
+  if (markers > 1) {
+    throw new ParseError('Azox parse error: <if> may contain only one <else />');
+  }
+
   return {
     type: 'if',
     expr: condition.expr,
