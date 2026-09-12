@@ -123,3 +123,22 @@ test('the router keeps no Node built-ins, so it runs in a browser', () => {
   const source = readFileSync(join(ROOT, 'core/router/navigate.js'), 'utf8');
   assert.doesNotMatch(source, /^\s*import\s[^;]*['"]node:/m);
 });
+
+// A classic <script> that enhances the markup — heading anchors, a
+// table of contents, syntax highlighting — ran once on first load. The
+// router replaces the article without a reload, so the nodes it worked
+// on are gone and it has no way to know. This event is that signal.
+test('the router emits azox:navigate after a swap', () => {
+  const source = readFileSync(join(ROOT, 'core/router/navigate.js'), 'utf8');
+
+  assert.match(source, /azox:navigate/, 'the event is dispatched');
+  // After the page module, so a listener sees the finished page.
+  const moduleAt = source.indexOf('await runPageModule');
+  const eventAt = source.indexOf('azox:navigate');
+  assert.ok(moduleAt !== -1 && eventAt > moduleAt, 'dispatched after the module has run');
+});
+
+test('the event carries where the reader went, and came from', () => {
+  const source = readFileSync(join(ROOT, 'core/router/navigate.js'), 'utf8');
+  assert.match(source, /detail:\s*\{\s*url:\s*href,\s*from:\s*previous\s*\}/);
+});

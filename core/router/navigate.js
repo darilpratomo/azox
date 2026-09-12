@@ -128,6 +128,7 @@ async function go(href, { restore = false } = {}) {
   // already holds wherever the reader last asked to go.
   if (location.href !== href) return;
 
+  const previous = currentUrl;
   const next = new DOMParser().parseFromString(html, 'text/html');
   const incoming = next.querySelector(ROOT);
   const target = document.querySelector(ROOT);
@@ -145,6 +146,18 @@ async function go(href, { restore = false } = {}) {
 
   currentUrl = href;
   restoreScroll(restore);
+
+  // The page's own module is re-run above, but a classic <script> that
+  // enhances the markup — syntax highlighting, heading anchors, a
+  // table of contents — is not: it ran once on first load and the
+  // nodes it worked on have just been replaced. This event is how such
+  // a script knows to run again.
+  //
+  // Dispatched after the swap and after the module, so a listener sees
+  // the finished page.
+  document.dispatchEvent(
+    new CustomEvent('azox:navigate', { detail: { url: href, from: previous } })
+  );
 }
 
 // Brings across anything in the new page's head that this one lacks —

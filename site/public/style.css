@@ -1919,3 +1919,199 @@ summary:focus-visible {
     min-height: 22rem;
   }
 }
+
+/* ==========================================================
+   Search
+   ========================================================== */
+
+.nav-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+.nav-search:hover {
+  border-color: var(--border-bright);
+  color: var(--text-dim);
+}
+
+.nav-search-key {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* The overlay */
+
+.search {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  padding: 4rem 1.25rem 1.25rem;
+  background: rgba(4, 5, 8, 0.76);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s var(--ease), visibility 0s linear 0.22s;
+}
+.search[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.22s var(--ease), visibility 0s;
+}
+
+.search-panel {
+  width: min(40rem, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-bright);
+  border-radius: 0.9rem;
+  background: var(--surface);
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.9);
+  overflow: hidden;
+  transform: translateY(-0.6rem) scale(0.99);
+  transition: transform 0.24s var(--ease);
+}
+.search[data-open='true'] .search-panel {
+  transform: none;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+}
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+}
+.search-field input:focus {
+  outline: none;
+}
+/* The browser's own clear button sits oddly in a dark field. */
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+.search-field kbd {
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.search-status {
+  margin: 0;
+  padding: 0.7rem 1rem;
+  font-size: 0.82rem;
+  color: var(--text-faint);
+}
+
+.search-results {
+  margin: 0;
+  padding: 0 0.5rem 0.5rem;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.search-results a {
+  display: block;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.6rem;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.14s var(--ease);
+}
+.search-results a:hover,
+.search-results a[data-active='true'] {
+  background: var(--surface-2);
+}
+
+.search-result-title {
+  display: block;
+  font-weight: 550;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.search-result-page {
+  display: block;
+  margin-top: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+.search-result-text {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+.search-results mark {
+  padding: 0 0.1em;
+  border-radius: 3px;
+  background: rgba(212, 248, 53, 0.18);
+  color: var(--accent);
+}
+
+/* A heading you can link to shows its anchor on hover. */
+.doc-body h2[id],
+.doc-body h3[id] {
+  scroll-margin-top: calc(var(--nav-height) + 1.5rem);
+}
+
+@media (max-width: 859px) {
+  /* The label and shortcut go; the icon stays, beside the menu. */
+  .nav-search {
+    margin-left: auto;
+    margin-right: 0.5rem;
+    min-height: 44px;
+    padding-inline: 0.7rem;
+  }
+  .nav-search-label,
+  .nav-search-key {
+    display: none;
+  }
+
+  .search {
+    padding: 0.75rem;
+  }
+  .search-panel {
+    max-height: calc(100vh - 1.5rem);
+  }
+  .search-field input {
+    /* Under 16px, iOS zooms the page when the field is focused. */
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search,
+  .search-panel {
+    transition-duration: 0.01ms !important;
+  }
+}

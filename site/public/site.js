@@ -212,3 +212,55 @@ if (wantsMotion && 'IntersectionObserver' in window) {
     revealed.observe(el);
   }
 }
+
+/* ---------- Heading anchors ---------- */
+
+// The docs pages carry no ids, so a link to #a-section had nothing to
+// find. These are derived with the same rule build-search.mjs uses, so
+// a search result and the page always agree.
+//
+// Done in the browser rather than in the markup: eleven pages of
+// headings written by hand would drift the moment one was reworded.
+
+const slugify = (text) =>
+  text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+
+function addHeadingAnchors() {
+  const docBody = document.querySelector('.doc-body');
+  if (!docBody) return;
+
+  const used = new Set();
+
+  for (const heading of docBody.querySelectorAll('h2, h3')) {
+    if (heading.id) continue;
+
+    let slug = slugify(heading.textContent);
+    if (!slug) continue;
+
+    // Two sections may share a name across a long page.
+    let unique = slug;
+    let n = 2;
+    while (used.has(unique)) unique = `${slug}-${n++}`;
+    used.add(unique);
+
+    heading.id = unique;
+  }
+
+  // A hash that arrived before the ids existed would have scrolled
+  // nowhere, so it is honoured once they do.
+  if (location.hash) {
+    const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (target) target.scrollIntoView();
+  }
+}
+
+addHeadingAnchors();
+
+// The client-side router replaces the article without reloading the
+// page, so this script's one-time work has to happen again — the
+// headings it just added went out with the old markup.
+document.addEventListener('azox:navigate', addHeadingAnchors);

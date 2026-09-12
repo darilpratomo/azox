@@ -122,6 +122,35 @@
         enhanced.
       </p>
 
+      <h2>Knowing when a page changed</h2>
+      <p>
+        A page's own module is re-run on every navigation, so its
+        bindings work without you doing anything. A plain
+        <code>&lt;script&gt;</code> that enhances the markup is
+        different: it ran once when the site first loaded, and the
+        nodes it worked on have just been replaced.
+      </p>
+      <p>
+        The router announces each swap so such a script can run again.
+      </p>
+
+      <CodeBlock label="public/site.js"><text>function enhance() {
+  for (const heading of document.querySelectorAll('h2')) {
+    heading.id = heading.textContent.toLowerCase().replace(/\s+/g, '-');
+  }
+}
+
+enhance();
+document.addEventListener('azox:navigate', enhance);</text></CodeBlock>
+
+      <p>
+        The event fires after the new markup is in place and after the
+        page's module has run, so a listener always sees the finished
+        page. <code>event.detail</code> holds <code>url</code> and
+        <code>from</code>, which is enough to tell a section change from
+        a move to another part of the site.
+      </p>
+
       <h2>Next</h2>
       <ul>
         <li><a href="/docs/routing">Routing</a> — how files become URLs</li>

@@ -3,6 +3,17 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
+## Unreleased
+
+### Added
+
+- **`azox:navigate`**, dispatched on `document` after the client-side
+  router swaps a page and runs its module. A page's own module is
+  re-run on navigation, but a classic `<script>` that enhances the
+  markup — heading anchors, a table of contents, syntax highlighting —
+  is not: it ran once on first load and the nodes it worked on have
+  been replaced. `detail` carries `{ url, from }`.
+
 ## 1.0.1 — 2026-09-12
 
 ### Fixed

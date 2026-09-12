@@ -2,6 +2,7 @@
   <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/style.css" />
   <script src="/site.js" defer></script>
+  <script src="/search.js" defer></script>
 </head>
 
 <script>
@@ -20,6 +21,15 @@
       <span class="brand-mark">Azox</span>
       <span class="brand-version">v{pkg.version}</span>
     </a>
+
+    <button class="nav-search" type="button" aria-label="Search documentation" data-search-open>
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" stroke-linecap="round" />
+      </svg>
+      <span class="nav-search-label">Search</span>
+      <kbd class="nav-search-key">/</kbd>
+    </button>
 
     <!-- Shown only below the desktop breakpoint. The links used to
          scroll sideways off the screen with nothing to open them. -->
@@ -46,3 +56,28 @@
     </div>
   </div>
 </nav>
+
+<!-- One dialog, rendered on every page by this component, so search
+     works from anywhere rather than only inside the docs. -->
+<div class="search" data-search data-open="false" role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-panel">
+    <div class="search-field">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" stroke-linecap="round" />
+      </svg>
+      <input
+        type="search"
+        placeholder="Search the documentation"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Search documentation"
+        data-search-input
+      />
+      <kbd>esc</kbd>
+    </div>
+
+    <p class="search-status" data-search-status>Type to search the documentation.</p>
+    <ul class="search-results" data-search-results></ul>
+  </div>
+</div>
