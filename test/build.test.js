@@ -208,6 +208,17 @@ test('create scaffolds a runnable project', () => {
     const page = readFileSync(join(workspace, 'scaffolded/pages/index.azox'), 'utf8');
     assert.match(page, /from 'azox\/reactivity'/, 'scaffold must use the package specifier');
     assert.match(page, /<h1>scaffolded<\/h1>/);
+
+    // The scaffold is most people's first sight of the framework, so
+    // it should show what the framework can do.
+    assert.match(page, /<each /, 'shows a loop');
+    assert.match(page, /<if /, 'shows a conditional');
+
+    const component = readFileSync(
+      join(workspace, 'scaffolded/components/Counter.azox'),
+      'utf8'
+    );
+    assert.match(component, /signal\(0\)/, 'shows a component holding its own state');
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }

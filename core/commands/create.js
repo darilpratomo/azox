@@ -88,18 +88,33 @@ function starterPage(name) {
   import Counter from '../components/Counter.azox';
   import { signal } from 'azox/reactivity';
 
-  const count = signal(0);
+  const tasks = signal([
+    { title: 'Edit this page', done: true },
+    { title: 'Add a page of your own', done: false },
+  ]);
 </script>
 
 <main class="page">
   <h1>${name}</h1>
   <p>Built with Azox.</p>
 
-  <Counter label="Clicks" value={count()} />
+  <!-- Each Counter holds a count of its own. -->
+  <Counter label="Left" />
+  <Counter label="Right" />
 
-  <button on:click={() => count.set(count() + 1)}>
-    Add one
-  </button>
+  <!-- A list, rendered from data. Note that changing the list
+       rebuilds it, so keep state that must survive outside. -->
+  <ul>
+    <each item={tasks()} as="task" index="i">
+      <li>
+        <if cond={task.done}>
+          <s>{i + 1}. {task.title}</s>
+        <else />
+          <span>{i + 1}. {task.title}</span>
+        </if>
+      </li>
+    </each>
+  </ul>
 
   <p><a href="/about">About</a></p>
 </main>
@@ -117,14 +132,20 @@ function aboutPage(name) {
 `;
 }
 
-// Components take props and render markup. State lives in the page
-// that uses them.
+// A component may hold state of its own, and each use gets its own
+// copy — the two Counters on the starter page count independently.
 function starterComponent() {
   return `<script>
-  const { label, value } = props();
+  import { signal } from 'azox/reactivity';
+
+  const { label } = props();
+  const count = signal(0);
 </script>
 
-<p class="counter">{label}: {value}</p>
+<span class="counter">
+  {label}: {count()}
+  <button on:click={() => count.set(count() + 1)}>+</button>
+</span>
 `;
 }
 
