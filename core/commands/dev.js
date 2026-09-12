@@ -7,7 +7,7 @@
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 
-import { buildAll, BuildError, PAGES_DIR, BUILD_DIR } from '../build.js';
+import { buildAll, BuildError, PAGES_DIR, PUBLIC_DIR, COMPONENTS_DIR, BUILD_DIR } from '../build.js';
 import { createDevServer } from '../dev/server.js';
 import { watchDirectory } from '../dev/watcher.js';
 import { injectLiveReload } from '../dev/liveReload.js';
@@ -58,24 +58,39 @@ export async function devCommand({ flags }) {
   console.log('  Watching for changes. Press Ctrl+C to stop.');
   console.log('');
 
-  const stopWatching = watchDirectory(
-    pagesDir,
-    (filename) => {
-      const result = rebuild(projectDir);
-      dev.setBuildError(result.ok ? null : result.error);
+  const onChange = (filename) => {
+    const result = rebuild(projectDir);
+    dev.setBuildError(result.ok ? null : result.error);
 
-      if (result.ok) {
-        console.log(`  rebuilt${filename ? ` (${filename})` : ''}`);
-      } else {
-        reportFailure(result.error);
-      }
+    if (result.ok) {
+      console.log(`  rebuilt${filename ? ` (${filename})` : ''}`);
+    } else {
+      reportFailure(result.error);
+    }
 
-      // Reload either way: on failure the browser picks up the error
-      // page the server renders in place of the build output.
-      dev.reload();
-    },
-    { filter: (filename) => filename.endsWith('.azox') }
-  );
+    // Reload either way: on failure the browser picks up the error
+    // page the server renders in place of the build output.
+    dev.reload();
+  };
+
+  // Everything a page is built from, not just the pages themselves.
+  // Watching pages/ alone meant editing a component or a stylesheet
+  // did nothing until an unrelated .azox file was touched.
+  const watched = [
+    { dir: pagesDir, filter: (name) => name.endsWith('.azox') },
+    { dir: resolve(projectDir, COMPONENTS_DIR), filter: (name) => name.endsWith('.azox') },
+    // public/ holds stylesheets, fonts and images; any of them
+    // changing is worth a reload.
+    { dir: resolve(projectDir, PUBLIC_DIR), filter: () => true },
+  ];
+
+  const stoppers = watched
+    .filter(({ dir }) => existsSync(dir))
+    .map(({ dir, filter }) => watchDirectory(dir, onChange, { filter }));
+
+  const stopWatching = () => {
+    for (const stop of stoppers) stop();
+  };
 
   const shutdown = async () => {
     stopWatching();

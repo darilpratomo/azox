@@ -37,6 +37,7 @@ const RUNTIME_FILENAME = 'azox-runtime.js';
 const ROUTER_FILENAME = 'azox-router.js';
 
 export const PAGES_DIR = 'pages';
+export const COMPONENTS_DIR = 'components';
 export const PUBLIC_DIR = 'public';
 export const BUILD_DIR = '.azox/build';
 

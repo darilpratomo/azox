@@ -1,11 +1,14 @@
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createDevServer, RELOAD_PATH } from '../core/dev/server.js';
 import { injectLiveReload } from '../core/dev/liveReload.js';
+
+const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 let rootDir;
 let dev;
@@ -149,4 +152,23 @@ test('injectLiveReload adds the client before </body>', () => {
 
 test('injectLiveReload appends when there is no body tag', () => {
   assert.match(injectLiveReload('<p>bare</p>'), /<p>bare<\/p>[\s\S]*EventSource/);
+});
+
+// Regression: the dev server watched pages/ only, so editing a
+// component or a stylesheet did nothing until an unrelated .azox file
+// happened to be touched. Anything a page is built from has to be
+// watched, not just the pages.
+test('the dev command watches components and public, not only pages', () => {
+  const source = readFileSync(join(ROOT_DIR, 'core/commands/dev.js'), 'utf8');
+
+  assert.match(source, /COMPONENTS_DIR/, 'components/ must be watched');
+  assert.match(source, /PUBLIC_DIR/, 'public/ must be watched');
+});
+
+test('a public/ change is not filtered out by an extension check', () => {
+  const source = readFileSync(join(ROOT_DIR, 'core/commands/dev.js'), 'utf8');
+
+  // The public/ entry has to accept any file: a stylesheet, a font
+  // and an image are all worth a reload.
+  assert.match(source, /PUBLIC_DIR\), filter: \(\) => true/);
 });
