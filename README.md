@@ -147,6 +147,42 @@ There is still no component instance at runtime: the compiler wraps
 each use in its own JavaScript scope, which is ordinary scoping
 rather than a framework construct.
 
+## Layouts and the document head
+
+A component can carry a `<head>` block, so one shared component holds
+the stylesheet, fonts and scripts every page needs:
+
+```html
+<!-- components/Shell.azox -->
+<head>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<div class="shell">
+  <header>My site</header>
+  <slot />
+</div>
+```
+
+```html
+<!-- pages/index.azox -->
+<head>
+  <title>Home — my site</title>
+</head>
+
+<script>
+  import Shell from '../components/Shell.azox';
+</script>
+
+<Shell><main>Just this page's content.</main></Shell>
+```
+
+Blocks are merged with the component's first, so the page has the last
+word. Identical lines are emitted once, and a component used twice
+contributes once. A `<title>` or `<meta name="…">` set by the page
+replaces the component's rather than joining it — a document may hold
+only one of each — so a layout's title is a default, not a conflict.
+
 ## Loops and conditionals
 
 Control flow is expressed as tags, so it nests inside markup like

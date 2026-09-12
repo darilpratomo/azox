@@ -20,7 +20,7 @@ export class ComponentError extends BuildError {}
 // `resolver` decides how an import specifier becomes source text, so
 // this runs unchanged against disk or against an in-memory map. See
 // sourceResolver.js.
-export function resolveComponents(ast, sourcePath, resolver, seen = new Set()) {
+export function resolveComponents(ast, sourcePath, resolver, seen = new Set(), heads = null) {
   // Imports from stateful components are hoisted here: they cannot
   // live inside the scope function the compiler builds for each one.
   //
@@ -30,16 +30,24 @@ export function resolveComponents(ast, sourcePath, resolver, seen = new Set()) {
   // rebasing a component's import against the page's directory points
   // it at a file that is not there.
   const hoisted = new Map();
-  const markup = expand(ast.markup, ast, sourcePath, resolver, seen, hoisted);
+
+  // A component's <head> block is collected the same way, keyed by the
+  // file it came from so the same component used twice contributes
+  // once. A stylesheet link belongs in the document head, and until
+  // now only a page could put one there.
+  const collected = heads ?? new Map();
+
+  const markup = expand(ast.markup, ast, sourcePath, resolver, seen, hoisted, collected);
 
   return {
     ...ast,
     markup,
     componentImports: [...hoisted.values()],
+    componentHeads: [...collected.values()],
   };
 }
 
-function expand(node, ast, sourcePath, resolver, seen, hoisted) {
+function expand(node, ast, sourcePath, resolver, seen, hoisted, heads) {
   if (!node || node.type === 'text') return node;
 
   // <if> keeps its children in two branches rather than in `children`,
@@ -48,15 +56,17 @@ function expand(node, ast, sourcePath, resolver, seen, hoisted) {
   if (node.type === 'if') {
     return {
       ...node,
-      then: node.then.map((child) => expand(child, ast, sourcePath, resolver, seen, hoisted)),
+      then: node.then.map((child) =>
+        expand(child, ast, sourcePath, resolver, seen, hoisted, heads)
+      ),
       otherwise: node.otherwise.map((child) =>
-        expand(child, ast, sourcePath, resolver, seen, hoisted)
+        expand(child, ast, sourcePath, resolver, seen, hoisted, heads)
       ),
     };
   }
 
   const children = (node.children ?? []).map((child) =>
-    expand(child, ast, sourcePath, resolver, seen, hoisted)
+    expand(child, ast, sourcePath, resolver, seen, hoisted, heads)
   );
 
   if (node.type !== 'component') {
@@ -72,8 +82,13 @@ function expand(node, ast, sourcePath, resolver, seen, hoisted) {
     component.ast,
     component.path,
     resolver,
-    new Set([...seen, component.path])
+    new Set([...seen, component.path]),
+    heads
   );
+
+  // Keyed by path: a component used on a page twice must not emit its
+  // stylesheet link twice.
+  if (component.ast.head) heads.set(component.path, component.ast.head);
 
   const values = propValues(node, component.ast.props);
   const { logic, imports } = componentLogic(component.ast.script);

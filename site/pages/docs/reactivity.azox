@@ -1,8 +1,6 @@
 <head>
   <title>Reactivity — Azox</title>
   <meta name="description" content="Signals, effects and computed values: how Azox updates the DOM without a Virtual DOM." />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>

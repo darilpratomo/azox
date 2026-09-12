@@ -3,6 +3,18 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
+## Unreleased
+
+### Added
+
+- **A component may carry a `<head>` block.** One shared component can
+  now hold the stylesheet, fonts and scripts every page needs, instead
+  of each page repeating them. Blocks are merged behind the page's own,
+  identical lines are emitted once, and a component used twice
+  contributes once. A `<title>` or a `<meta name>` set by the page
+  replaces the component's, since a document may hold only one of
+  each — so a layout's title is a default rather than a conflict.
+
 ## 0.2.0 — 2026-09-12
 
 ### Added

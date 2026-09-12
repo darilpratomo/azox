@@ -1,8 +1,6 @@
 <head>
   <title>Getting started — Azox</title>
   <meta name="description" content="Install Azox, create a project, and understand what the build produces." />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>
@@ -81,7 +79,6 @@ npm run dev</text></CodeBlock>
 
       <CodeBlock label="pages/index.azox"><text><head>
   <title>My app</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <script>

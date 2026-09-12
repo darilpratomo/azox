@@ -1,9 +1,6 @@
 <head>
   <title>Why Azox — the case against the Virtual DOM</title>
   <meta name="description" content="Why fine-grained signals beat re-rendering and diffing, and what Azox gives up to get there." />
-  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>

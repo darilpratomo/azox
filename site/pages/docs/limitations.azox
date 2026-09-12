@@ -1,8 +1,6 @@
 <head>
   <title>Limitations — Azox</title>
   <meta name="description" content="What Azox does not do yet, stated plainly, so you can judge whether it fits." />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>
@@ -77,11 +75,15 @@
         rebuild on load.
       </p>
 
-      <h2>No shared layout</h2>
+      <h2>A layout is a component, not a route feature</h2>
       <p>
-        Every page repeats its own <code>&lt;head&gt;</code> block, and
-        components cannot contribute to the document head. A navigation
-        component can be shared; a stylesheet link cannot.
+        A component can carry a <code>&lt;head&gt;</code> block, so one
+        shared component holds the stylesheet, fonts and scripts every
+        page needs — see
+        <a href="/docs/components">Components</a>. What there is no
+        equivalent of is a layout that applies to a directory on its
+        own: each page still imports the layout and wraps its content
+        in it.
       </p>
 
       <h2>No CSS pipeline</h2>

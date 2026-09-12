@@ -1,8 +1,6 @@
 <head>
   <title>Deployment — Azox</title>
   <meta name="description" content="Deploy an Azox site to Vercel, Netlify, Cloudflare Pages or GitHub Pages." />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>

@@ -1,8 +1,6 @@
 <head>
   <title>Styling &amp; assets — Azox</title>
   <meta name="description" content="Stylesheets, fonts, images and the page head block in Azox." />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>
@@ -51,7 +49,6 @@
       <CodeBlock label="pages/index.azox"><text><head>
   <title>My app</title>
   <meta name="description" content="Built with Azox" />
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <main>
@@ -99,7 +96,6 @@
       </p>
 
       <CodeBlock label="head"><text><head>
-  <script src="/site.js" defer></script>
 </head></text></CodeBlock>
 
       <div class="note note-warn">

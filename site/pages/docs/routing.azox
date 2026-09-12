@@ -1,8 +1,6 @@
 <head>
   <title>Routing — Azox</title>
   <meta name="description" content="File-based routing: how pages/ becomes URLs, and what the build emits." />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>

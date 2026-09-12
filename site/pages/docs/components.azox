@@ -1,8 +1,6 @@
 <head>
   <title>Components — Azox</title>
   <meta name="description" content="Props, slots, and why Azox components disappear at build time." />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>
@@ -176,6 +174,53 @@ declare. It accepts: title, body.</text></CodeBlock>
   <Readout label="Clicks" value={count()} />
   <button on:click={() => count.set(count() + 1)}>Add</button>
 </main></text></CodeBlock>
+
+      <h2>Layouts and the document head</h2>
+      <p>
+        A component can carry a <code>&lt;head&gt;</code> block. Put the
+        stylesheet, fonts and scripts every page needs in one shared
+        component, and stop repeating them in each page.
+      </p>
+
+      <CodeBlock label="components/Shell.azox"><text><head>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="preload" href="/fonts/sora.woff2" as="font" type="font/woff2" crossorigin />
+</head>
+
+<div class="shell">
+  <header>My site</header>
+  <slot />
+  <footer>MIT licensed</footer>
+</div></text></CodeBlock>
+
+      <CodeBlock label="pages/index.azox"><text><head>
+  <title>Home — my site</title>
+</head>
+
+<script>
+  import Shell from '../components/Shell.azox';
+</script>
+
+<Shell>
+  <main>Just the page's own content.</main>
+</Shell></text></CodeBlock>
+
+      <p>
+        The blocks are merged: the component's lines come first, and the
+        page's come after so a page has the last word. Identical lines
+        appear once, and a component used twice contributes once — a
+        stylesheet does not get linked repeatedly.
+      </p>
+
+      <div class="note">
+        <p>
+          A <code>&lt;title&gt;</code> or a
+          <code>&lt;meta name="…"&gt;</code> that the page sets
+          <strong>replaces</strong> the component's rather than joining
+          it, since a document may hold only one of each. So a layout can
+          set a sensible default title and each page override it.
+        </p>
+      </div>
 
       <h2>What the compiler produces</h2>
       <p>

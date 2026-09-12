@@ -1,9 +1,6 @@
 <head>
   <title>Tutorial — Build a site with Azox</title>
   <meta name="description" content="From an empty directory to a deployed site, one step at a time." />
-  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>
@@ -89,7 +86,6 @@ npm install</text></CodeBlock>
 
           <CodeBlock label="pages/index.azox"><text><head>
   <title>Linkbox</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <main class="page">
@@ -254,7 +250,6 @@ h1 { font-size: 2.2rem; margin: 0 0 0.3rem; }
 
           <CodeBlock label="pages/about.azox"><text><head>
   <title>About — Linkbox</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <main class="page">

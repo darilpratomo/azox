@@ -113,7 +113,12 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
     copyFileSync(resolve(ROOT_DIR, 'core/router/navigate.js'), resolve(buildRoot, ROUTER_FILENAME));
   }
 
-  let document = wrapDocument(html, projectTitle(projectDir), ast.head, {
+  // A component's <head> block is merged in behind the page's own, so
+  // a layout can carry the stylesheet and fonts every page needs while
+  // the page keeps the last word on its title and description.
+  const head = mergeHeads(ast.head, ast.componentHeads ?? []);
+
+  let document = wrapDocument(html, projectTitle(projectDir), head, {
     routerSrc: router ? `${route.assetPrefix}${ROUTER_FILENAME}` : null,
   });
   if (transformHtml) document = transformHtml(document);
@@ -366,6 +371,70 @@ function loadModules(script, sourcePath, componentImports = []) {
 
 // The client module sits next to the page's index.html, so the src is
 // the same for every route regardless of how deep it is.
+// Combines the <head> blocks a page and its components contributed.
+//
+// Components come first so the page can override them: a <title> or a
+// <meta name="description"> set by a layout is a sensible default, and
+// the page that knows its own subject should win. Identical lines are
+// emitted once, so a layout and a page both asking for the same
+// stylesheet do not produce it twice.
+function mergeHeads(pageHead, componentHeads) {
+  const seen = new Set();
+  const lines = [];
+
+  // A page's <title> and description replace a component's rather than
+  // appearing alongside: two titles in one document is invalid.
+  const pageTags = uniqueHeadTags(pageHead);
+
+  for (const block of [...componentHeads, pageHead]) {
+    for (const line of (block ?? '').split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const key = normaliseHeadLine(trimmed);
+      if (seen.has(key)) continue;
+
+      // Dropped in favour of the page's own.
+      const tag = uniqueTagName(trimmed);
+      if (tag && block !== pageHead && pageTags.has(tag)) continue;
+
+      seen.add(key);
+      lines.push(trimmed);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// Tags a document may only hold one of, so a component's must give way
+// to the page's. Keyed by tag name, plus the `name` of a <meta> — two
+// different meta tags are fine, two descriptions are not.
+function uniqueTagName(line) {
+  const title = /^<title[\s>]/i.test(line);
+  if (title) return 'title';
+
+  const meta = line.match(/^<meta\s[^>]*name=["']([^"']+)["']/i);
+  if (meta) return `meta:${meta[1].toLowerCase()}`;
+
+  return null;
+}
+
+function uniqueHeadTags(head) {
+  const names = new Set();
+
+  for (const line of (head ?? '').split('\n')) {
+    const tag = uniqueTagName(line.trim());
+    if (tag) names.add(tag);
+  }
+
+  return names;
+}
+
+// Whitespace inside a tag should not make two identical links differ.
+function normaliseHeadLine(line) {
+  return line.replace(/\s+/g, ' ');
+}
+
 // A page's own <head> block wins over the fallback title, so a page
 // can set its own <title>, stylesheets and meta tags.
 function wrapDocument(bodyHtml, title, head = '', { routerSrc = null } = {}) {

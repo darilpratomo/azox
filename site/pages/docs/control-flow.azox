@@ -1,9 +1,6 @@
 <head>
   <title>Loops &amp; conditionals — Azox</title>
   <meta name="description" content="Rendering lists with <each> and branching with <if> in Azox." />
-  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>

@@ -1,9 +1,6 @@
 <head>
   <title>Templates — Azox</title>
   <meta name="description" content="Complete Azox sites to copy and adapt: a landing page, a portfolio, a blog and a dashboard." />
-  <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/site.js" defer></script>
 </head>
 
 <script>
@@ -109,7 +106,6 @@
 
       <CodeBlock label="pages/index.azox"><text><head>
   <title>Product — a better way to ship</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <script>
@@ -236,7 +232,6 @@ h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.1; margin: 0 0 1rem; 
 
       <CodeBlock label="pages/index.azox"><text><head>
   <title>Ada Lovelace — work</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <script>
@@ -348,7 +343,6 @@ h1 { font-size: 2rem; margin: 0 0 0.75rem; }
 
       <CodeBlock label="pages/index.azox"><text><head>
   <title>Notes</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <script>
@@ -375,7 +369,6 @@ h1 { font-size: 2rem; margin: 0 0 0.75rem; }
 
       <CodeBlock label="pages/posts/first.azox"><text><head>
   <title>Why I stopped reaching for a framework</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <article class="page post">
@@ -418,7 +411,6 @@ h1 { font-size: 2rem; margin: 0 0 0.75rem; }
 
       <CodeBlock label="pages/index.azox"><text><head>
   <title>Dashboard</title>
-  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <script>
