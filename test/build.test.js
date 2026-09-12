@@ -377,3 +377,59 @@ test('create rejects an invalid project name', () => {
     }
   );
 });
+
+// Exit codes matter: a CI step or deploy script reads them, so a failing
+// build that exits 0 would ship broken output as though it succeeded.
+// Nothing asserted these before.
+const exitCodeOf = (args, cwd) => {
+  try {
+    execFileSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', stdio: 'pipe' });
+    return 0;
+  } catch (error) {
+    return error.status;
+  }
+};
+
+test('a successful build exits 0', () => {
+  assert.equal(exitCodeOf(['compile'], projectDir), 0);
+});
+
+test('a project with no pages exits non-zero', () => {
+  const empty = mkdtempSync(join(tmpdir(), 'azox-exit-'));
+
+  try {
+    mkdirSync(join(empty, 'pages'), { recursive: true });
+    assert.notEqual(exitCodeOf(['compile'], empty), 0);
+  } finally {
+    rmSync(empty, { recursive: true, force: true });
+  }
+});
+
+test('a page that cannot compile exits non-zero', () => {
+  const broken = mkdtempSync(join(tmpdir(), 'azox-exit-'));
+
+  try {
+    mkdirSync(join(broken, 'pages'), { recursive: true });
+    writeFileSync(join(broken, 'pages/index.azox'), '<p>{ ( ) => }</p>');
+    assert.notEqual(exitCodeOf(['compile'], broken), 0);
+  } finally {
+    rmSync(broken, { recursive: true, force: true });
+  }
+});
+
+test('an unknown command exits non-zero', () => {
+  assert.notEqual(exitCodeOf(['nonsense'], projectDir), 0);
+});
+
+test('an unknown flag exits non-zero', () => {
+  assert.notEqual(exitCodeOf(['compile', '--bogus'], projectDir), 0);
+});
+
+test('naming a page that does not exist exits non-zero', () => {
+  assert.notEqual(exitCodeOf(['compile', '--page=ghost'], projectDir), 0);
+});
+
+test('-v and help exit 0', () => {
+  assert.equal(exitCodeOf(['-v'], projectDir), 0);
+  assert.equal(exitCodeOf(['help'], projectDir), 0);
+});

@@ -118,3 +118,36 @@ test('escapes quotes in dynamic attribute values', () => {
 test('escapes ampersands so entities are not double-decoded', () => {
   assert.equal(render('<p>{value()}</p>', { value: () => 'a & b' }), '<p>a &amp; b</p>');
 });
+
+// Escaping, stated as what a browser would do with the output rather
+// than as a string comparison. Verified in headless Chrome: none of
+// these payloads creates an attribute or an element.
+test('a quote in an attribute value cannot close the attribute', () => {
+  const html = renderToHtml(parseAzox('<p title={v}>x</p>'), { v: '" onload="bad()' });
+
+  assert.match(html, /title="&quot; onload=&quot;bad\(\)"/);
+  // With quotes encoded, no second attribute can appear.
+  assert.doesNotMatch(html.replace(/&quot;/g, 'Q'), /="[^"]*"\s+\w+="/);
+});
+
+test('a closing tag in text stays text', () => {
+  const html = renderToHtml(parseAzox('<p>{v}</p>'), {
+    v: '</p><img src=x onerror="bad()">',
+  });
+
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /&lt;img/);
+});
+
+test('a payload in href cannot add an event handler', () => {
+  const html = renderToHtml(parseAzox('<a href={v}>x</a>'), { v: '" onmouseover="bad()' });
+
+  // The whole payload stays inside the one quoted value: every quote is
+  // encoded, so the attribute never closes and no second one begins.
+  assert.equal(html, '<a href="&quot; onmouseover=&quot;bad()">x</a>');
+  assert.equal(html.match(/"/g).length, 2, 'only the attribute\'s own quotes are literal');
+});
+
+test('an ampersand in text is encoded once, not twice', () => {
+  assert.equal(renderToHtml(parseAzox('<p>{v}</p>'), { v: 'a & b' }), '<p>a &amp; b</p>');
+});
