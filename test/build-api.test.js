@@ -446,3 +446,66 @@ test('a parse error surfaces with the offending tag', () => {
     rmSync(broken, { recursive: true, force: true });
   }
 });
+
+// Every dotfile in public/ used to be skipped, which also dropped the
+// ones a static host needs: .nojekyll stops GitHub Pages running Jekyll
+// over the output, and .well-known/ is how a domain is verified.
+test('public/ publishes dotfiles a host needs', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'azox-dot-'));
+
+  try {
+    mkdirSync(join(dir, 'pages'), { recursive: true });
+    mkdirSync(join(dir, 'public/.well-known'), { recursive: true });
+    writeFileSync(join(dir, 'pages/index.azox'), '<main>x</main>');
+    writeFileSync(join(dir, 'public/.nojekyll'), '');
+    writeFileSync(join(dir, 'public/CNAME'), 'example.com');
+    writeFileSync(join(dir, 'public/.well-known/proof.txt'), 'ok');
+
+    buildAll(dir);
+
+    assert.ok(existsSync(join(dir, '.azox/build/.nojekyll')));
+    assert.ok(existsSync(join(dir, '.azox/build/CNAME')));
+    assert.ok(existsSync(join(dir, '.azox/build/.well-known/proof.txt')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('editor and OS junk is still left behind', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'azox-junk-'));
+
+  try {
+    mkdirSync(join(dir, 'pages'), { recursive: true });
+    mkdirSync(join(dir, 'public'), { recursive: true });
+    writeFileSync(join(dir, 'pages/index.azox'), '<main>x</main>');
+    writeFileSync(join(dir, 'public/.DS_Store'), 'junk');
+    writeFileSync(join(dir, 'public/Thumbs.db'), 'junk');
+
+    buildAll(dir);
+
+    assert.equal(existsSync(join(dir, '.azox/build/.DS_Store')), false);
+    assert.equal(existsSync(join(dir, '.azox/build/Thumbs.db')), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The stale-output sweep deletes generated files; a published dotfile is
+// not one, and must survive a second build.
+test('published dotfiles survive a rebuild', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'azox-dot2-'));
+
+  try {
+    mkdirSync(join(dir, 'pages'), { recursive: true });
+    mkdirSync(join(dir, 'public'), { recursive: true });
+    writeFileSync(join(dir, 'pages/index.azox'), '<main>x</main>');
+    writeFileSync(join(dir, 'public/.nojekyll'), '');
+
+    buildAll(dir);
+    buildAll(dir);
+
+    assert.ok(existsSync(join(dir, '.azox/build/.nojekyll')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

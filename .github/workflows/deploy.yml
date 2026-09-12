@@ -1,0 +1,63 @@
+# Builds the site with Azox itself and publishes it to GitHub Pages.
+#
+# The site is a plain directory of HTML — fourteen of its sixteen pages
+# ship no JavaScript at all — so there is nothing to run on a server.
+
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+  # So a deploy can be re-run from the Actions tab without a commit.
+  workflow_dispatch:
+
+# Pages needs these to publish; nothing else in the repo does.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A newer push supersedes one already running, but a deploy in flight is
+# allowed to finish rather than leaving the site half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22.x'
+
+      # The site advertises its test count, and build-stats.mjs refuses
+      # to write a number that includes failures — so a broken build
+      # cannot reach the site.
+      - name: Run tests
+        run: npm test
+
+      - name: Build the site
+        run: npm run build
+        working-directory: site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/.azox/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

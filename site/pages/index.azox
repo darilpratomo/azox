@@ -4,6 +4,9 @@
 </head>
 
 <script>
+  // Measured by build-stats.mjs, not typed: the page used to claim
+  // "185 tests" and "~1 KB runtime", both long out of date.
+  import stats from '../stats.json' with { type: 'json' };
   import Nav from '../components/Nav.azox';
   import Footer from '../components/Footer.azox';
   import CodeBlock from '../components/CodeBlock.azox';
@@ -42,11 +45,11 @@
           <p class="stat-label">dependencies</p>
         </div>
         <div class="stat">
-          <p class="stat-value">822 B</p>
+          <p class="stat-value">{(stats.runtimeGzip / 1024).toFixed(1)} KB</p>
           <p class="stat-label">runtime, gzipped</p>
         </div>
         <div class="stat">
-          <p class="stat-value">364</p>
+          <p class="stat-value">{stats.tests}</p>
           <p class="stat-label">tests passing</p>
         </div>
         <div class="stat">

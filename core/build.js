@@ -337,6 +337,17 @@ function removeStaleOutput(projectDir, results, assets = []) {
 // Everything in public/ is copied to the build root untouched, so a
 // stylesheet, font or image is referenced by the same path in source
 // and in the built site: public/style.css -> /style.css.
+// Files an editor or OS leaves behind, which should not be published.
+//
+// Every dotfile used to be skipped, which also dropped the ones a static
+// host needs: .nojekyll tells GitHub Pages not to run Jekyll over the
+// output, and .well-known/ is how a domain or certificate is verified.
+const EDITOR_JUNK = new Set(['.DS_Store', 'Thumbs.db', '.git', 'node_modules']);
+
+function isEditorJunk(name) {
+  return EDITOR_JUNK.has(name);
+}
+
 export function copyPublicAssets(projectDir) {
   const publicDir = resolve(projectDir, PUBLIC_DIR);
   if (!existsSync(publicDir)) return [];
@@ -346,7 +357,7 @@ export function copyPublicAssets(projectDir) {
 
   const walk = (dir, relativeDir) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith('.')) continue;
+      if (isEditorJunk(entry.name)) continue;
 
       const from = join(dir, entry.name);
       const to = join(buildRoot, relativeDir, entry.name);
