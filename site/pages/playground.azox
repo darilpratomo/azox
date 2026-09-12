@@ -26,7 +26,7 @@
             <button class="pg-tab" data-tab="component">Card.azox</button>
             <button class="pg-tab" data-tab="output">compiled</button>
           </div>
-          <div style="display:flex; gap:0.3rem">
+          <div class="pg-actions">
             <button class="copy-btn" data-copy>Copy</button>
             <button class="copy-btn" data-download="index.azox">Download</button>
             <button class="copy-btn" data-reset>Reset</button>

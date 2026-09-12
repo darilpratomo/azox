@@ -1787,3 +1787,135 @@ body::after {
     transform: none;
   }
 }
+
+/* ==========================================================
+   Touch targets and legibility on small screens
+   ==========================================================
+   Measured at 390px: the Copy buttons were 49×24, the playground tabs
+   24 tall, the docs links 36, and several labels sat at 11px. A finger
+   needs about 44px, and small type on a phone is read at arm's length
+   in worse light than a desktop. */
+
+@media (max-width: 859px) {
+  /* A button keeps its visual size; the padding grows the hit area. */
+  .copy-btn,
+  .pg-tab {
+    min-height: 44px;
+    padding-inline: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .pg-tabs,
+  .pg-actions {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  /* Each docs link becomes a row you can hit without aiming. */
+  .sidebar a {
+    display: block;
+    min-height: 44px;
+    padding-block: 0.7rem;
+  }
+
+  .card-more,
+  .card-run {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* The wordmark is the link home, so it gets a real target too. */
+  .brand {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  /* Small labels stay small, but not 11px. */
+  .eyebrow,
+  .section-mark,
+  .sidebar-title,
+  .stat-label,
+  .code-label,
+  .pg-label,
+  /* The label on a code block is a bare span, so it needs naming by
+     its parent rather than by a class of its own. */
+  .code-head span,
+  .pg-head span {
+    font-size: 0.8rem;
+  }
+
+  /* Body copy a notch larger: the default reads fine on a desktop at
+     60cm and poorly on a phone at 35cm. */
+  .doc-body p,
+  .doc-body li {
+    font-size: 1.02rem;
+    line-height: 1.72;
+  }
+
+  /* Code blocks scroll rather than shrinking the page. */
+  .code pre,
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Focus is visible everywhere, not only where a browser guesses. A
+   keyboard user needs to see where they are, and the site had nothing
+   consistent. */
+a:focus-visible,
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* The playground header holds two groups: which file you are looking
+   at, and what to do with it. Side by side they fit a desktop; on a
+   phone they wrapped into one jumble where "Card.azox" sat between
+   Copy and Download. They stack instead. */
+.pg-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+@media (max-width: 859px) {
+  .pg-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.55rem 0.6rem;
+  }
+
+  .pg-tabs,
+  .pg-actions {
+    justify-content: flex-start;
+    gap: 0.35rem;
+  }
+
+  /* Each group scrolls on its own if it has to, rather than wrapping
+     into rows that read as unrelated. */
+  .pg-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .pg-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pg-tab,
+  .pg-actions .copy-btn {
+    flex: 0 0 auto;
+  }
+
+  /* The editor is the point of the page, so give it room. */
+  .pg-editor {
+    min-height: 22rem;
+  }
+}
