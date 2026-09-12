@@ -65,6 +65,46 @@ pages/blog/first-post.azox  →  /blog/first-post
 Build one page with `azox compile --page=blog/first-post`, or by its
 URL: `azox compile --page=/blog/first-post`.
 
+### Dynamic routes
+
+A bracketed segment in a filename is a parameter, and the file becomes
+a template that builds one page per entry it declares:
+
+```html
+<!-- pages/blog/[slug].azox -->
+<script>
+  import posts from '../../posts.json' with { type: 'json' };
+
+  // Which pages to build.
+  routes(posts.map((p) => ({ slug: p.slug })));
+
+  // The parameters of the page being built.
+  const { slug } = params();
+  const post = posts.find((p) => p.slug === slug);
+</script>
+
+<article>
+  <h1>{post.title}</h1>
+  <p>{post.body}</p>
+</article>
+```
+
+```
+posts.json with two entries  →  /blog/hello
+                             →  /blog/second
+```
+
+`routes()` takes an array of objects, one per page, each supplying
+every parameter the filename asks for. A filename may hold several
+(`pages/[lang]/[slug].azox`), and `params()` returns them all.
+
+Both are build-time declarations: neither reaches the browser. The
+parameters for each page are compiled into its module as a constant.
+
+A missing `routes()` call, an entry missing a parameter, a value
+containing a `/`, and two entries producing the same URL are all
+reported as build errors rather than producing a broken site.
+
 ## Components
 
 A component is a `.azox` file that declares what it accepts and

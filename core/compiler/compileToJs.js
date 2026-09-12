@@ -23,12 +23,20 @@ const nextId = () => `_el${uid++}`;
 //   value, whose import must not reach the browser. A JSON import
 //   points outside the build directory at a file that is never
 //   deployed, so the value is emitted as a constant instead.
-export function compileToModule(ast, { runtimeSpecifier, rewriteImports, inlineModules }) {
+// routeParams: the resolved parameters for this page of a dynamic
+//   route. routes() is a build-time declaration and params() is
+//   answered before the browser is involved, so both are removed from
+//   the emitted module and the values are inlined.
+export function compileToModule(
+  ast,
+  { runtimeSpecifier, rewriteImports, inlineModules, routeParams }
+) {
   uid = 0;
   const statements = [];
   const rootVar = emitNode(ast.markup, statements, 'root');
 
   let script = dropComponentImports(ast.script);
+  script = resolveRouteDeclarations(script, routeParams);
   if (rewriteImports) script = rewriteImports(script);
 
   // A page with no bindings and no listeners has nothing to hydrate:
@@ -228,6 +236,21 @@ function narrow(name, value, usage) {
   }
 
   return narrowed;
+}
+
+// Removes the build-time route declarations from a page's script.
+//
+// routes([...]) says which pages to build, which the browser has no
+// use for — and calling it there is a ReferenceError that leaves the
+// page inert. params() is replaced by the values this page was built
+// with, so the markup reads them as plain data.
+function resolveRouteDeclarations(script, routeParams) {
+  if (!routeParams) return script;
+
+  return script
+    // A whole statement, so the trailing semicolon and newline go too.
+    .replace(/^[ \t]*routes\s*\([\s\S]*?\)\s*;?[ \t]*$/gm, '')
+    .replace(/\bparams\s*\(\s*\)/g, JSON.stringify(routeParams));
 }
 
 function staticNote() {

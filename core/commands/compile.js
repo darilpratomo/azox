@@ -15,7 +15,11 @@ export function compileCommand({ flags }) {
   const projectDir = process.cwd();
 
   try {
-    const results = flags.page ? [buildPage(projectDir, flags.page)] : buildAll(projectDir);
+    // Naming a [parameter] template builds every page it declares, so
+    // buildPage may answer with more than one.
+    const results = flags.page
+      ? [buildPage(projectDir, flags.page)].flat()
+      : buildAll(projectDir);
 
     console.log(BANNER);
     console.log('');

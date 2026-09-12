@@ -22,7 +22,7 @@ import { renderToHtml } from './renderer/renderToHtml.js';
 import { parseImports } from './renderer/moduleBindings.js';
 import { evaluateScript } from './renderer/serverScope.js';
 import { escapeHtml } from './compiler/html.js';
-import { collectRoutes, findRoute } from './routes.js';
+import { collectRoutes, findRoute, resolveRoute, PAGE_EXTENSION } from './routes.js';
 import { createNodeResolver } from './nodeResolver.js';
 import { ROOT_DIR } from './meta.js';
 import { BuildError } from './buildError.js';
@@ -68,7 +68,11 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
   // SSR pass: render initial markup without touching browser DOM APIs.
   let html;
   try {
-    html = renderToHtml(ast, buildServerScope(ast.script, inlineModules), inlineModules);
+    html = renderToHtml(
+      ast,
+      buildServerScope(ast.script, inlineModules, route.params),
+      inlineModules
+    );
   } catch (error) {
     if (!(error instanceof BuildError)) throw error;
     throw new BuildError(`in ${PAGES_DIR}/${name}.azox: ${error.message}`);
@@ -97,6 +101,7 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
       rewriteImports: (script, from = sourcePath) =>
         rebaseImports(script, dirname(from), clientPath),
       inlineModules,
+      routeParams: route.params ?? null,
     }),
     runtimeSpecifier
   );
@@ -138,11 +143,140 @@ export function buildAll(projectDir, options) {
     );
   }
 
-  const results = routes.map((route) => buildRoute(projectDir, route, options));
+  const results = expandTemplates(routes).map((route) =>
+    buildRoute(projectDir, route, options)
+  );
   const assets = copyPublicAssets(projectDir);
   removeStaleOutput(projectDir, results, assets);
 
   return results;
+}
+
+// Turns each template into the concrete routes it declares, leaving
+// ordinary pages as they are. A template stands in for however many
+// pages its routes() call names, and is never written at its own url.
+function expandTemplates(routes) {
+  const expanded = [];
+  const seen = new Map();
+
+  for (const route of routes) {
+    if (!route.isTemplate) {
+      expanded.push(route);
+      continue;
+    }
+
+    for (const values of discoverRoutes(route)) {
+      const resolved = resolveRoute(route, values);
+
+      // Two entries producing the same url would have one silently
+      // overwrite the other, leaving a page missing with no sign of it.
+      const clash = seen.get(resolved.url);
+      if (clash) {
+        throw new BuildError(
+          `${relative(process.cwd(), route.sourcePath)} declares ${resolved.url} twice — ` +
+            `route parameters must be unique`
+        );
+      }
+
+      seen.set(resolved.url, route);
+      expanded.push(resolved);
+    }
+  }
+
+  return expanded;
+}
+
+// Runs a template's <script> with `routes` bound to a collector, so
+// the page declares its own pages from whatever data it imports.
+//
+// The script runs twice per page in total — once here to discover the
+// list, then once per page to render it. That is the cost of letting
+// the declaration be ordinary JavaScript rather than a separate
+// manifest the author has to keep in step.
+function discoverRoutes(route) {
+  const source = readFileSync(route.sourcePath, 'utf8');
+  const parsed = parseAzox(source);
+  const where = `${PAGES_DIR}/${route.name}${PAGE_EXTENSION}`;
+
+  if (!/\broutes\s*\(/.test(parsed.script)) {
+    throw new BuildError(
+      `in ${where}: a page with a [parameter] in its name must declare its pages — ` +
+        `add routes([...]) to its <script> block, for example ` +
+        `routes(posts.map((p) => ({ ${route.paramNames[0]}: p.${route.paramNames[0]} })))`
+    );
+  }
+
+  const collected = [];
+  const body = parsed.script.replace(/^\s*import\s.+?;?\s*$/gm, '');
+
+  try {
+    evaluateScript(
+      body,
+      [],
+      [],
+      loadModules(parsed.script, route.sourcePath),
+      {
+        routes: (list) => {
+          collected.push(...normaliseRouteList(list, where, route.paramNames));
+          return list;
+        },
+        // Discovery happens before any page exists, so params() has
+        // nothing to report yet. Returning an empty object lets a
+        // script that destructures it run without a special case.
+        params: () => ({}),
+      }
+    );
+  } catch (error) {
+    if (error instanceof BuildError) throw error;
+    throw new BuildError(`in ${where}: failed to work out which pages to build: ${error.message}`);
+  }
+
+  if (!collected.length) {
+    throw new BuildError(
+      `in ${where}: routes() was called with nothing, so no pages would be built. ` +
+        `If the list can be empty, that is fine — but the build has nothing to write.`
+    );
+  }
+
+  return collected;
+}
+
+// Each entry must supply every parameter the filename asks for. A
+// missing one would otherwise land in a url as "undefined".
+function normaliseRouteList(list, where, names) {
+  if (!Array.isArray(list)) {
+    throw new BuildError(
+      `in ${where}: routes() needs an array of objects — got ${typeof list}`
+    );
+  }
+
+  return list.map((entry, index) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new BuildError(
+        `in ${where}: routes() entry ${index} must be an object like { ${names[0]}: 'value' }`
+      );
+    }
+
+    for (const name of names) {
+      const value = entry[name];
+
+      if (value === undefined || value === null || value === '') {
+        throw new BuildError(
+          `in ${where}: routes() entry ${index} is missing "${name}", ` +
+            `which the filename asks for`
+        );
+      }
+
+      if (String(value).includes('/')) {
+        throw new BuildError(
+          `in ${where}: routes() entry ${index} has "${name}" set to "${value}", ` +
+            `which contains a "/" — a parameter fills one url segment`
+        );
+      }
+    }
+
+    return entry;
+  });
 }
 
 // Deletes output belonging to pages that no longer exist. Without
@@ -222,13 +356,28 @@ export function copyPublicAssets(projectDir) {
 
 // Builds a single page by route name or URL.
 export function buildPage(projectDir, pageName, options) {
-  const route = findRoute(listRoutes(projectDir), pageName);
+  const routes = listRoutes(projectDir);
+  const route = findRoute(routes, pageName);
 
-  if (!route) {
-    throw new BuildError(`page "${PAGES_DIR}/${pageName}.azox" not found in ${projectDir}`);
+  // A template cannot be built at its own url, so naming it builds
+  // every page it declares — which is what the author means by
+  // `azox compile --page=blog/[slug]`.
+  if (route?.isTemplate) {
+    return expandTemplates([route]).map((page) => buildRoute(projectDir, page, options));
   }
 
-  return buildRoute(projectDir, route, options);
+  if (route) return buildRoute(projectDir, route, options);
+
+  // Not a file, so it may be one of the pages a template declares.
+  // Expanding them is the only way to know.
+  const generated = findRoute(
+    expandTemplates(routes.filter((candidate) => candidate.isTemplate)),
+    pageName
+  );
+
+  if (generated) return buildRoute(projectDir, generated, options);
+
+  throw new BuildError(`page "${PAGES_DIR}/${pageName}.azox" not found in ${projectDir}`);
 }
 
 // Rewrites the bare specifier a page's own <script> uses to the same
@@ -305,14 +454,21 @@ function projectTitle(projectDir) {
 // evaluate the expressions the template references. The script is
 // trusted project source, not user input — the same assumption any
 // template engine's SSR step makes.
-function buildServerScope(script, modules = {}) {
+function buildServerScope(script, modules = {}, params = null) {
   // Strip imports: the server supplies its own primitives rather than
   // loading the real reactive runtime, and anything else a script
   // imports was resolved by loadModules and is passed in.
   const body = script.replace(/^\s*import\s.+?;?\s*$/gm, '');
 
+  // A dynamic page reads its own parameters through params(), and its
+  // routes() call has already been answered by discovery — calling it
+  // again here would collect the list a second time to no purpose.
+  const extras = params
+    ? { params: () => params, routes: (list) => list }
+    : {};
+
   try {
-    return evaluateScript(body, [], [], modules);
+    return evaluateScript(body, [], [], modules, extras);
   } catch (error) {
     if (error instanceof BuildError) throw error;
     throw new BuildError(`failed to evaluate the page's <script> block: ${error.message}`);
@@ -355,6 +511,11 @@ function loadModules(script, sourcePath, componentImports = []) {
 
     let loaded;
     try {
+      // require caches by resolved path, which is wrong for a build
+      // that runs repeatedly in one process: `azox dev` would keep
+      // serving the data as it was when the server started, so editing
+      // a post changed nothing. Dropping the entry re-reads the file.
+      delete require.cache[require.resolve(specifier)];
       loaded = require(specifier);
     } catch (error) {
       throw new BuildError(`cannot import '${specifier}': ${error.message.split('\n')[0]}`);

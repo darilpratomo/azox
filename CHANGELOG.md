@@ -7,6 +7,15 @@ between minor versions; each such change is listed here.
 
 ### Added
 
+- **Dynamic routes.** A bracketed segment in a filename is a
+  parameter, so `pages/blog/[slug].azox` builds one page per entry:
+  `routes([...])` declares which pages to build and `params()` returns
+  the ones being built. Both are build-time declarations and neither
+  reaches the browser — each page's parameters are compiled into its
+  module as a constant. A missing `routes()` call, an entry missing a
+  parameter, a value containing a `/`, and two entries producing the
+  same url are all reported as build errors.
+
 - **A component may carry a `<head>` block.** One shared component can
   now hold the stylesheet, fonts and scripts every page needs, instead
   of each page repeating them. Blocks are merged behind the page's own,
@@ -14,6 +23,15 @@ between minor versions; each such change is listed here.
   contributes once. A `<title>` or a `<meta name>` set by the page
   replaces the component's, since a document may hold only one of
   each — so a layout's title is a default rather than a conflict.
+
+### Fixed
+
+- `azox dev` did not rebuild when a `.json` file a page imports
+  changed, so editing a post's content or adding one changed nothing
+  on screen. The project root's `.json` files are now watched, and the
+  require cache is dropped per build — it caches by path, so every
+  rebuild in a long-running dev server had been reusing the data as it
+  was when the server started.
 
 ## 0.2.0 — 2026-09-12
 

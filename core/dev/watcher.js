@@ -11,7 +11,10 @@ import { join } from 'node:path';
 
 const DEBOUNCE_MS = 40;
 
-export function watchDirectory(dir, onChange, { filter = () => true } = {}) {
+// `recursive: false` watches only the directory itself. The project
+// root holds the build output and node_modules, so sweeping it
+// recursively would rebuild in a loop.
+export function watchDirectory(dir, onChange, { filter = () => true, recursive = true } = {}) {
   const watchers = [];
   let timer = null;
 
@@ -21,6 +24,14 @@ export function watchDirectory(dir, onChange, { filter = () => true } = {}) {
     clearTimeout(timer);
     timer = setTimeout(() => onChange(filename), DEBOUNCE_MS);
   };
+
+  if (!recursive) {
+    watchers.push(watch(dir, (_event, filename) => trigger(filename)));
+    return () => {
+      clearTimeout(timer);
+      for (const watcher of watchers) watcher.close();
+    };
+  }
 
   try {
     watchers.push(watch(dir, { recursive: true }, (_event, filename) => trigger(filename)));

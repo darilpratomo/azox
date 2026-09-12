@@ -42,6 +42,9 @@ export function parseAzox(source) {
     markup: node,
     components: parseComponentImports(script),
     props: parsePropNames(script),
+    // A dynamic page destructures its route parameters the same way a
+    // component destructures its props.
+    params: parseParamNames(script),
   };
 }
 
@@ -63,6 +66,18 @@ function parseComponentImports(script) {
 // `const { title, count } = props();` declares what a component
 // accepts. Declaring them explicitly lets the compiler reject a
 // caller that passes something the component never asked for.
+// `const { slug } = params()` names the route parameters the page
+// reads, mirroring how props() declares a component's inputs.
+function parseParamNames(script) {
+  const match = script.match(/const\s*\{([^}]*)\}\s*=\s*params\(\)/);
+  if (!match) return [];
+
+  return match[1]
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 function parsePropNames(script) {
   const match = script.match(/const\s*\{([^}]*)\}\s*=\s*props\(\)/);
   if (!match) return [];

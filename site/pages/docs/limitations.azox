@@ -49,10 +49,13 @@
         whether you remembered to add one.
       </p>
 
-      <h2>No dynamic routes</h2>
+      <h2>Routes are fixed at build time</h2>
       <p>
-        Every route is a file that exists at build time. There is no
-        <code>[slug].azox</code>, and no way to generate pages from data.
+        <a href="/docs/routing">Dynamic routes</a> exist — a
+        <code>[slug].azox</code> file builds one page per entry it
+        declares — but the set of pages is decided when you build. There
+        is no server rendering a URL on request, so a route that depends
+        on something only known at request time is out of reach.
       </p>
 
       <h2>State does not survive navigation</h2>

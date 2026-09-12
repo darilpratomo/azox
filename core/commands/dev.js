@@ -82,11 +82,20 @@ export async function devCommand({ flags }) {
     // public/ holds stylesheets, fonts and images; any of them
     // changing is worth a reload.
     { dir: resolve(projectDir, PUBLIC_DIR), filter: () => true },
+    // A page can import a .json file for its content, and a dynamic
+    // route builds its pages from one. Editing the data has to rebuild
+    // or the new entry never appears. Not recursive: the project root
+    // also holds the build output, and watching that rebuilds forever.
+    {
+      dir: projectDir,
+      filter: (name) => name.endsWith('.json') && !name.includes('package-lock'),
+      recursive: false,
+    },
   ];
 
   const stoppers = watched
     .filter(({ dir }) => existsSync(dir))
-    .map(({ dir, filter }) => watchDirectory(dir, onChange, { filter }));
+    .map(({ dir, filter, recursive }) => watchDirectory(dir, onChange, { filter, recursive }));
 
   const stopWatching = () => {
     for (const stop of stoppers) stop();

@@ -5,6 +5,11 @@
 //   pages/blog/index.azox   →  /blog          →  blog/index.html
 //   pages/blog/first.azox   →  /blog/first    →  blog/first/index.html
 //
+// A segment in brackets is a parameter, and the file is a template
+// rather than a route of its own:
+//
+//   pages/blog/[slug].azox  →  one page per entry the file declares
+//
 // Emitting a directory with an index.html means clean URLs work on
 // any static host without rewrite rules, since serving index.html
 // for a directory is universal behaviour.
@@ -43,6 +48,38 @@ function walk(dir, pagesDir) {
   return found;
 }
 
+// A bracketed segment names a parameter: [slug] matches one segment
+// and binds it to `slug`.
+const PARAM_SEGMENT = /^\[([A-Za-z_$][\w$]*)\]$/;
+
+export function paramNames(segments) {
+  return segments.map((segment) => segment.match(PARAM_SEGMENT)?.[1]).filter(Boolean);
+}
+
+// Fills a template's bracketed segments from a set of parameter
+// values, producing the concrete route that will be written.
+export function resolveRoute(route, values) {
+  const segments = route.templateSegments.map((segment) => {
+    const name = segment.match(PARAM_SEGMENT)?.[1];
+    if (!name) return segment;
+    return String(values[name]);
+  });
+
+  const url = segments.length ? `/${segments.join('/')}` : '/';
+  const outputDir = segments.join('/');
+
+  return {
+    ...route,
+    params: values,
+    isTemplate: false,
+    name: segments.join('/'),
+    url,
+    htmlPath: outputDir ? `${outputDir}/index.html` : 'index.html',
+    assetPrefix: '../'.repeat(segments.length) || './',
+    outputDir,
+  };
+}
+
 function describeRoute(pagesDir, sourcePath) {
   const relativePath = relative(pagesDir, sourcePath);
   const segments = relativePath.slice(0, -PAGE_EXTENSION.length).split(sep);
@@ -54,6 +91,8 @@ function describeRoute(pagesDir, sourcePath) {
   const url = routeSegments.length ? `/${routeSegments.join('/')}` : '/';
   const outputDir = routeSegments.join('/');
 
+  const params = paramNames(routeSegments);
+
   return {
     // The name used on the command line: `azox compile --page=blog/first`
     name: segments.join('/'),
@@ -64,6 +103,11 @@ function describeRoute(pagesDir, sourcePath) {
     // back out to reach the shared runtime at the build root.
     assetPrefix: '../'.repeat(routeSegments.length) || './',
     outputDir,
+    // A template is not a page: it stands in for however many the
+    // file declares, and is never written at this url.
+    isTemplate: params.length > 0,
+    paramNames: params,
+    templateSegments: routeSegments,
   };
 }
 
