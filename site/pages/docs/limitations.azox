@@ -72,11 +72,16 @@
 
       <h2>Hydration replaces the markup</h2>
       <p>
-        The client module clears the server-rendered root and rebuilds it,
-        rather than adopting the existing nodes. Content is present before
-        JavaScript runs, which is what matters for search engines and slow
-        connections, but this is not true hydration and there is a brief
-        rebuild on load.
+        On a page that has something to hydrate, the client module clears
+        the server-rendered root and rebuilds it rather than adopting the
+        existing nodes. Content is present before JavaScript runs, which
+        is what matters for search engines and slow connections, but this
+        is not true hydration.
+      </p>
+      <p>
+        A page with no bindings and no listeners skips this entirely: it
+        ships no JavaScript, so there is nothing to replace. That covers
+        most pages of a content site — including nearly all of this one.
       </p>
 
       <h2>A layout is a component, not a route feature</h2>

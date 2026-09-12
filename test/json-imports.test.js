@@ -48,17 +48,23 @@ test('a page reads a value from an imported json file', () => {
 test('the value is inlined rather than imported by the client module', () => {
   const dir = project({
     'package.json': JSON.stringify({ name: 'app', version: '1.2.3', type: 'module' }),
+    // A listener, so the page has to hydrate and therefore has a module
+    // to inspect — a page whose only expression is a constant ships none.
     'pages/index.azox': `<script>
+  import { signal } from 'azox/reactivity';
   import pkg from '../package.json' with { type: 'json' };
+  const n = signal(0);
 </script>
-<p>v{pkg.version}</p>`,
+<p on:click={() => n.set(n() + 1)}>v{pkg.version} {n()}</p>`,
   });
 
   try {
     const code = readFileSync(buildPage(dir, 'index').clientPath, 'utf8');
 
     assert.doesNotMatch(code, /package\.json/, 'no import may reach the browser');
-    assert.match(code, /const pkg = \{"version":"1\.2\.3"\}/);
+    // The value is folded straight into the binding, so not even an
+    // object for it is declared.
+    assert.match(code, /"1\.2\.3"/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -75,16 +81,18 @@ test('only the properties the page reads are inlined', () => {
       type: 'module',
     }),
     'pages/index.azox': `<script>
+  import { signal } from 'azox/reactivity';
   import pkg from '../package.json' with { type: 'json' };
+  const n = signal(0);
 </script>
-<p>{pkg.version}</p>`,
+<p on:click={() => n.set(n() + 1)}>{pkg.version} {n()}</p>`,
   });
 
   try {
     const code = readFileSync(buildPage(dir, 'index').clientPath, 'utf8');
 
     assert.doesNotMatch(code, /someone@example\.com/, 'an unread field must not ship');
-    assert.match(code, /"version":"1\.0\.0"/);
+    assert.match(code, /"1\.0\.0"/, 'the value the page reads is still there');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -121,9 +129,11 @@ test('a component may import json of its own', () => {
 </script>
 <span>v{pkg.version}</span>`,
     'pages/index.azox': `<script>
+  import { signal } from 'azox/reactivity';
   import Badge from '../components/Badge.azox';
+  const n = signal(0);
 </script>
-<main><Badge /></main>`,
+<main on:click={() => n.set(n() + 1)}><Badge />{n()}</main>`,
   });
 
   try {
@@ -131,11 +141,11 @@ test('a component may import json of its own', () => {
 
     assert.match(readFileSync(result.htmlPath, 'utf8'), /<span>v7\.7\.7<\/span>/);
 
-    // The binding must be declared exactly once: hoisting the import
-    // and inlining the value both declare it.
+    // No import may reach the browser, and the value the component reads
+    // is folded in rather than declared.
     const code = readFileSync(result.clientPath, 'utf8');
-    assert.equal(code.match(/const pkg =/g)?.length, 1);
     assert.doesNotMatch(code, /import pkg/);
+    assert.doesNotMatch(code, /package\.json/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -153,19 +163,22 @@ test('inlined data containing the runtime name is left alone', () => {
       keywords: ['azox', 'framework'],
       type: 'module',
     }),
+    // Indexed dynamically, so the value cannot be folded and the whole
+    // object is declared — which is what puts the runtime's own name into
+    // the module as data.
     'pages/index.azox': `<script>
   import { signal } from 'azox/reactivity';
   import pkg from '../package.json' with { type: 'json' };
-  const n = signal(0);
+  const i = signal(0);
 </script>
-<p on:click={() => n.set(n() + 1)}>{pkg.keywords[0]} {n()}</p>`,
+<p on:click={() => i.set(i() + 1)}>{pkg.keywords[i()]}</p>`,
   });
 
   try {
     const result = buildPage(dir, 'index');
     const code = readFileSync(result.clientPath, 'utf8');
 
-    assert.match(readFileSync(result.htmlPath, 'utf8'), /azox 0/);
+    assert.match(readFileSync(result.htmlPath, 'utf8'), /azox/);
     assert.match(code, /"keywords":\["azox","framework"\]/);
     // The real import is still rewritten to the copied runtime.
     assert.match(code, /from '\.\/azox-runtime\.js'/);

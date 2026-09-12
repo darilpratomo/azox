@@ -8,6 +8,10 @@ import { buildPage, buildAll, listRoutes, BuildError } from '../core/build.js';
 
 let projectDir;
 
+// A page that genuinely hydrates: it reads a signal, so it has bindings
+// and therefore a client module. A page with no bindings and no
+// listeners ships none, which is correct but not what these tests are
+// about.
 const page = (body) => `<script>
   import { signal } from 'azox/reactivity';
   const count = signal(0);
@@ -47,11 +51,46 @@ test('listRoutes returns nothing when there is no pages directory', () => {
 });
 
 test('buildPage writes html, client module and runtime', () => {
-  const result = buildPage(projectDir, 'index');
+  // A page that reads its signal, which is what a client module is for —
+  // the shared fixtures are static and correctly ship none.
+  const dir = mkdtempSync(join(tmpdir(), 'azox-live-'));
 
-  assert.match(readFileSync(result.htmlPath, 'utf8'), /<h1>Home<\/h1>/);
-  assert.match(readFileSync(result.clientPath, 'utf8'), /createElement\("main"\)/);
-  assert.match(readFileSync(result.runtimePath, 'utf8'), /export function signal/);
+  try {
+    mkdirSync(join(dir, 'pages'), { recursive: true });
+    writeFileSync(
+      join(dir, 'pages/index.azox'),
+      page('<main><h1>Live</h1><button on:click={() => count.set(count() + 1)}>{count()}</button></main>')
+    );
+
+    const result = buildPage(dir, 'index');
+
+    assert.match(readFileSync(result.htmlPath, 'utf8'), /<h1>Live<\/h1>/);
+    assert.match(readFileSync(result.clientPath, 'utf8'), /createElement\("main"\)/);
+    assert.match(readFileSync(result.runtimePath, 'utf8'), /export function signal/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// A page with nothing to hydrate does not reference a module, and none
+// is written — a static page that downloads one pays for a render()
+// nobody calls, and pulls in the runtime with it.
+test('a static page ships no client module', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'azox-plain-'));
+
+  try {
+    mkdirSync(join(dir, 'pages'), { recursive: true });
+    writeFileSync(join(dir, 'pages/index.azox'), '<main><h1>Plain</h1></main>');
+
+    const result = buildPage(dir, 'index');
+    const html = readFileSync(result.htmlPath, 'utf8');
+
+    assert.match(html, /<h1>Plain<\/h1>/, 'the markup still arrives complete');
+    assert.doesNotMatch(html, /page\.client\.js/, 'and references no module');
+    assert.equal(existsSync(result.clientPath), false, 'none is written');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('buildAll builds every page', () => {
@@ -161,7 +200,7 @@ test('a nested page imports the runtime through its own prefix', () => {
 
   try {
     mkdirSync(join(nested, 'pages/blog'), { recursive: true });
-    writeFileSync(join(nested, 'pages/index.azox'), page('<main>root</main>'));
+    writeFileSync(join(nested, 'pages/index.azox'), page('<main>{count()}</main>'));
     writeFileSync(join(nested, 'pages/blog/post.azox'), page('<main>{count()}</main>'));
 
     const results = buildAll(nested);

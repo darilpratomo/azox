@@ -10,6 +10,52 @@
 let uid = 0;
 const nextId = () => `_el${uid++}`;
 
+// Names the build resolved to constants — an inlined JSON import, say.
+// An expression reading only these can never change, so it is emitted
+// as text rather than wrapped in an effect. Set per compile.
+let constantNames = new Set();
+let constantValues = {};
+
+// True when `expr` reads nothing that could ever change: literals,
+// operators, and property paths rooted in a build-time constant.
+//
+// Deliberately conservative. A call, an unknown identifier, or anything
+// it cannot account for means "assume it changes" — being wrong that way
+// costs an effect that never fires, while the opposite silently freezes
+// a binding that should update.
+function isConstantExpression(expr) {
+  if (!constantNames.size) return false;
+
+  const source = expr.trim();
+  if (!source) return false;
+
+  // A call could return anything, and assignment or increment means the
+  // value is meant to change.
+  if (/[(]/.test(source)) return false;
+  if (/(\+\+|--|[^=!<>]=[^=])/.test(source)) return false;
+
+  // Strip strings and template literals before looking at identifiers,
+  // so words inside them are not mistaken for names.
+  const withoutStrings = source
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\$]|\\.|\$(?!\{))*`/g, '``');
+
+  // A template literal with a placeholder is not handled here.
+  if (/`/.test(withoutStrings) && /\$\{/.test(source)) return false;
+
+  // Every identifier that is not a property access must be a known
+  // constant. `pkg.version` yields `pkg`; `a.b.c` yields `a`.
+  const roots = [...withoutStrings.matchAll(/(\.)?\b([A-Za-z_$][\w$]*)\b/g)]
+    .filter(([, dot]) => !dot)
+    .map(([, , name]) => name);
+
+  if (!roots.length) return false;
+
+  const allowed = new Set(['true', 'false', 'null', 'undefined']);
+  return roots.every((name) => constantNames.has(name) || allowed.has(name));
+}
+
 // runtimeSpecifier: how the emitted module should import the Azox
 //   runtime — a relative path to the copied runtime for a build, or
 //   whatever the playground wants to point at.
@@ -32,6 +78,11 @@ export function compileToModule(
   { runtimeSpecifier, rewriteImports, inlineModules, routeParams }
 ) {
   uid = 0;
+  // Values the build resolved: their bindings need no effect, which is
+  // what lets a page whose only "dynamic" text is a version number ship
+  // as a static page.
+  constantValues = inlineModules ?? {};
+  constantNames = new Set(Object.keys(constantValues));
   const statements = [];
   const rootVar = emitNode(ast.markup, statements, 'root');
 
@@ -238,10 +289,20 @@ function emitInlineModules(inlineModules, usage = '') {
   const entries = Object.entries(inlineModules);
   if (!entries.length) return '';
 
-  const lines = entries.map(
-    ([name, value]) => `const ${name} = ${JSON.stringify(narrow(name, value, usage))};`
-  );
-  return `${lines.join('\n')}\n`;
+  const lines = entries
+    // A value whose every read was folded into the markup needs no
+    // declaration at all. Emitting it anyway would publish the rest of
+    // the file — an author's address included — for nothing.
+    .filter(([name]) => isRead(name, usage))
+    .map(([name, value]) => `const ${name} = ${JSON.stringify(narrow(name, value, usage))};`);
+
+  return lines.length ? `${lines.join('\n')}\n` : '';
+}
+
+// Whether the emitted code still mentions the binding.
+function isRead(name, usage) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`).test(usage);
 }
 
 // Keeps only the properties the module reads by name. A page that
@@ -296,11 +357,17 @@ function resolveRouteDeclarations(script, routeParams) {
     .replace(/\bparams\s*\(\s*\)/g, JSON.stringify(routeParams));
 }
 
+// Marks a module that does nothing on load. The build reads it to decide
+// whether the page needs to reference the module at all — a static page
+// that still downloads it pays for a render() nobody calls, and pulls in
+// the runtime with it.
+export const STATIC_MARKER = 'azox:static';
+
 function staticNote() {
   return `
-// This page has no bindings and no listeners, so the server-rendered
-// markup is already complete and is left untouched. render() is
-// exported for anyone who wants to mount it somewhere else.
+// ${STATIC_MARKER} — this page has no bindings and no listeners, so the
+// server-rendered markup is already complete and is left untouched.
+// render() is exported for anyone who wants to mount it somewhere else.
 `;
 }
 
@@ -627,7 +694,7 @@ function foldLiteralParts(parts) {
 
 function emitText(node, statements, fallbackVar) {
   const isFixed = (part) => part.kind === 'static' || part.kind === 'literal';
-  node = { ...node, parts: foldLiteralParts(node.parts) };
+  node = { ...node, parts: foldConstantParts(foldLiteralParts(node.parts)) };
 
   // Nothing dynamic: one text node, no effect needed.
   if (node.parts.every(isFixed)) {
@@ -645,6 +712,46 @@ function emitText(node, statements, fallbackVar) {
     .join(' + ');
   statements.push(`effect(() => { ${varName}.data = ${expr}; });`);
   return varName;
+}
+
+// Turns an expression the build already resolved into a literal part, so
+// the text node is created with the value rather than an effect being
+// attached to write it. The page whose only "dynamic" text is a version
+// number then ships as a static page.
+function foldConstantParts(parts) {
+  if (!constantNames.size) return parts;
+
+  return parts.map((part) => {
+    if (part.kind !== 'expr' || !isConstantExpression(part.expr)) return part;
+
+    const value = evaluateInlinedExpression(part.expr);
+    if (value === undefined) return part;
+
+    return { kind: 'literal', value: String(value) };
+  });
+}
+
+// Evaluates a constant expression against the values the build resolved.
+// Returns undefined when it cannot be evaluated, which leaves the part
+// dynamic — the safe direction.
+//
+// Named for this file: the playground concatenates the compiler's
+// modules into one scope, so a bare `evaluateConstant` collides with the
+// one in resolveComponents.js and the whole bundle fails to parse.
+function evaluateInlinedExpression(expr) {
+  try {
+    const names = [...constantNames];
+    const fn = new Function(...names, `return (${expr});`);
+    const value = fn(...names.map((name) => constantValues[name]));
+
+    // Only a primitive can be written into the markup as text.
+    if (value === null || value === undefined) return undefined;
+    if (typeof value === 'object' || typeof value === 'function') return undefined;
+
+    return value;
+  } catch {
+    return undefined;
+  }
 }
 
 // The five entities that matter for text content. Numeric forms are

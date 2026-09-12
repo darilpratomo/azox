@@ -17,7 +17,7 @@ import { createRequire } from 'node:module';
 
 import { parseAzox } from './compiler/parser.js';
 import { resolveComponents } from './compiler/resolveComponents.js';
-import { compileToModule } from './compiler/compileToJs.js';
+import { compileToModule, STATIC_MARKER } from './compiler/compileToJs.js';
 import { renderToHtml } from './renderer/renderToHtml.js';
 import { parseImports } from './renderer/moduleBindings.js';
 import { evaluateScript } from './renderer/serverScope.js';
@@ -107,7 +107,18 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
   );
 
   assertValidJavaScript(clientModule, name);
-  writeFileSync(clientPath, clientModule, 'utf8');
+  // A page with no bindings and no listeners does nothing on load, so
+  // the document does not reference its module — and without a reference
+  // there is no reason to write it. The page still arrives complete,
+  // because the markup was rendered during the build.
+  const isStatic = clientModule.includes(STATIC_MARKER);
+
+  if (isStatic) {
+    // A previous build may have left one behind.
+    if (existsSync(clientPath)) rmSync(clientPath);
+  } else {
+    writeFileSync(clientPath, clientModule, 'utf8');
+  }
 
   // One runtime at the build root, shared by every page.
   const runtimePath = resolve(buildRoot, RUNTIME_FILENAME);
@@ -125,6 +136,7 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
 
   let document = wrapDocument(html, projectTitle(projectDir), head, {
     routerSrc: router ? `${route.assetPrefix}${ROUTER_FILENAME}` : null,
+    clientSrc: isStatic ? null : './page.client.js',
   });
   if (transformHtml) document = transformHtml(document);
 
@@ -598,7 +610,12 @@ function normaliseHeadLine(line) {
 
 // A page's own <head> block wins over the fallback title, so a page
 // can set its own <title>, stylesheets and meta tags.
-function wrapDocument(bodyHtml, title, head = '', { routerSrc = null } = {}) {
+function wrapDocument(
+  bodyHtml,
+  title,
+  head = '',
+  { routerSrc = null, clientSrc = './page.client.js' } = {}
+) {
   const hasOwnTitle = /<title>/i.test(head);
 
   // The router is loaded after the page's own module, so a page is
@@ -615,7 +632,7 @@ function wrapDocument(bodyHtml, title, head = '', { routerSrc = null } = {}) {
 ${hasOwnTitle ? '' : `  <title>${escapeHtml(title)}</title>\n`}${head ? indent(head) + '\n' : ''}</head>
 <body>
 <div data-azox-root>${bodyHtml}</div>
-<script type="module" src="./page.client.js"></script>${router}
+${clientSrc ? `<script type="module" src="${clientSrc}"></script>` : ''}${router}
 </body>
 </html>
 `;

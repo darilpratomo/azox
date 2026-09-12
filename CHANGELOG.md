@@ -3,6 +3,33 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
+## Unreleased
+
+### Changed
+
+- **A static page ships no JavaScript at all.** A page with no bindings
+  and no listeners arrives complete from the build, so the document no
+  longer references a client module and none is written. It used to load
+  one whose only job was to export a `render()` nothing called — and to
+  pull in the runtime with it. On this site that removed 372 kB across
+  fourteen pages.
+- **An expression reading only build-time constants is folded into the
+  markup** rather than wrapped in an effect. Every page here hydrated for
+  one reason: a version badge read from `package.json`, a value that
+  cannot change after the build. Folding it made fourteen of sixteen
+  pages static. A constant whose every read was folded is no longer
+  declared at all. The check is deliberately conservative — a call, an
+  unknown name, or a dynamic index all mean "assume it changes".
+
+### Fixed
+
+- A stale client module left by an earlier build is removed when a page
+  stops needing one, so a deployed site does not keep loading it.
+- Two compiler modules defining the same top-level name broke the
+  playground, which concatenates them into one scope — the page loaded
+  and the compiler silently did not. A test now catches the collision
+  before the bundle is built.
+
 ## 0.4.0 — 2026-09-12
 
 ### Added

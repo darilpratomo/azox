@@ -187,3 +187,43 @@ test('the compiler, renderer and runtime import no Node built-ins', () => {
     `these must stay browser-compatible: ${offenders.join(', ')}`
   );
 });
+
+// Regression: the playground concatenates the compiler's modules into
+// one scope, so two files defining the same top-level name is a syntax
+// error that takes the whole bundle down — the page loaded, the compiler
+// did not, and nothing in the suite noticed. Module scope hides this
+// until the bundle is built.
+test('no two compiler modules declare the same top-level name', () => {
+  // The same list the playground bundler concatenates, in its order.
+  const MODULES = [
+    'core/buildError.js',
+    'core/compiler/html.js',
+    'core/compiler/parser.js',
+    'core/compiler/sourceResolver.js',
+    'core/compiler/resolveComponents.js',
+    'core/compiler/compileToJs.js',
+    'core/renderer/renderToHtml.js',
+  ];
+
+  const owners = new Map();
+  const clashes = [];
+
+  for (const relative of MODULES) {
+    const source = readFileSync(join(ROOT, relative), 'utf8');
+
+    // Top-level declarations only: no leading whitespace.
+    const names = [
+      ...source.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm),
+      ...source.matchAll(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/gm),
+      ...source.matchAll(/^(?:export\s+)?class\s+([A-Za-z_$][\w$]*)/gm),
+    ].map((match) => match[1]);
+
+    for (const name of names) {
+      const owner = owners.get(name);
+      if (owner && owner !== relative) clashes.push(`${name} — ${owner} and ${relative}`);
+      else owners.set(name, relative);
+    }
+  }
+
+  assert.deepEqual(clashes, [], 'these names would collide once concatenated');
+});

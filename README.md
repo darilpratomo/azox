@@ -363,10 +363,17 @@ npm run build
 ```
 
 The build lands in `.azox/build/` as a self-contained static bundle —
-an `index.html` per route, a compiled hydration module beside it, and
-one shared copy of the runtime. No dev machinery is included. Serve
-that directory with any static host and it works with no install
-step and no rewrite configuration.
+an `index.html` per route, a compiled hydration module beside it where
+one is needed, and one shared copy of the runtime. No dev machinery is
+included. Serve that directory with any static host and it works with
+no install step and no rewrite configuration.
+
+A page with no bindings and no listeners ships **no JavaScript at
+all**: it arrives complete from the build, so the document references
+no module and none is written. An expression that reads only
+build-time constants — a version from `package.json`, say — is folded
+into the markup rather than wrapped in an effect, which is often what
+decides whether a page needs a module in the first place.
 
 ## CLI
 
