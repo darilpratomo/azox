@@ -3,7 +3,7 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
-## Unreleased
+## 0.3.0 — 2026-09-12
 
 ### Added
 
