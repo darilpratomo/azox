@@ -11,7 +11,7 @@ third-party CLI dependencies, no borrowed syntax from React, Vue, or
 Next.js. It compiles `.azox` components directly into fine-grained,
 signal-driven DOM updates.
 
-> Status: early development (v0.3.0). APIs are unstable and will
+> Status: early development (v0.4.0). APIs are unstable and will
 > change without notice until v1.0.
 
 ## Why Azox

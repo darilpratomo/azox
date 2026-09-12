@@ -25,7 +25,7 @@
 
       <div class="note">
         <p>
-          <strong>Early development.</strong> Azox is at v0.3.0. It works end
+          <strong>Early development.</strong> Azox is at v0.4.0. It works end
           to end, but the API can still change. See
           <a href="/docs/limitations">limitations</a> for what it does not do yet.
         </p>

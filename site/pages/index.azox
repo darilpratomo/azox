@@ -17,7 +17,7 @@
 
   <header class="hero">
     <div class="container">
-      <span class="eyebrow rise-in">v0.3.0 · early development</span>
+      <span class="eyebrow rise-in">v0.4.0 · early development</span>
       <h1 class="rise-in delay-1">Azox<br /><span class="hero-tagline">The Sound of Future Web</span></h1>
       <p class="hero-lede rise-in delay-2">
         A web framework built from scratch. No Virtual DOM, no diffing, no
