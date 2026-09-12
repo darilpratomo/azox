@@ -341,6 +341,60 @@ test('a page script can use let and destructuring', () => {
   }
 });
 
+// Regression: deleting a page left its built output behind, so a
+// deployed site kept serving a page that no longer existed.
+test('output for a deleted page is removed on the next build', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'azox-stale-'));
+
+  try {
+    mkdirSync(join(dir, 'pages'), { recursive: true });
+    writeFileSync(join(dir, 'pages/index.azox'), '<main>home</main>');
+    writeFileSync(join(dir, 'pages/gone.azox'), '<main>gone</main>');
+
+    buildAll(dir);
+    assert.ok(existsSync(join(dir, '.azox/build/gone/index.html')));
+
+    rmSync(join(dir, 'pages/gone.azox'));
+    buildAll(dir);
+
+    assert.equal(
+      existsSync(join(dir, '.azox/build/gone/index.html')),
+      false,
+      'the page is gone, so its output must be too'
+    );
+    assert.ok(existsSync(join(dir, '.azox/build/index.html')), 'the live page stays');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The cleanup deletes files, so what it must not touch matters as
+// much as what it removes.
+test('cleanup leaves public assets and the runtime alone', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'azox-keep-'));
+
+  try {
+    mkdirSync(join(dir, 'pages'), { recursive: true });
+    mkdirSync(join(dir, 'public/static'), { recursive: true });
+    writeFileSync(join(dir, 'pages/index.azox'), '<main>x</main>');
+    writeFileSync(join(dir, 'public/style.css'), 'body{}');
+    // A file a user placed themselves, with a name the build also uses.
+    writeFileSync(join(dir, 'public/static/index.html'), '<p>mine</p>');
+
+    buildAll(dir);
+    buildAll(dir);
+
+    assert.ok(existsSync(join(dir, '.azox/build/style.css')));
+    assert.ok(existsSync(join(dir, '.azox/build/azox-runtime.js')));
+    assert.ok(
+      existsSync(join(dir, '.azox/build/static/index.html')),
+      'a user\'s own index.html must survive'
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a parse error surfaces with the offending tag', () => {
   const broken = mkdtempSync(join(tmpdir(), 'azox-broken-'));
 

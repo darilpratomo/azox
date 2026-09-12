@@ -10,6 +10,7 @@ import {
   copyFileSync,
   existsSync,
   readdirSync,
+  rmSync,
 } from 'node:fs';
 import { resolve, basename, relative, dirname, join } from 'node:path';
 
@@ -122,9 +123,53 @@ export function buildAll(projectDir, options) {
   }
 
   const results = routes.map((route) => buildRoute(projectDir, route, options));
-  copyPublicAssets(projectDir);
+  const assets = copyPublicAssets(projectDir);
+  removeStaleOutput(projectDir, results, assets);
 
   return results;
+}
+
+// Deletes output belonging to pages that no longer exist. Without
+// this, deleting a page leaves its built copy behind and a deployed
+// site keeps serving it.
+//
+// Deliberately narrow: it only ever removes an index.html or a
+// page.client.js that this build did not just write, and only inside
+// the build directory. Anything else found there — a file copied from
+// public/, something a user put there — is left alone.
+function removeStaleOutput(projectDir, results, assets = []) {
+  const buildRoot = resolve(projectDir, BUILD_DIR);
+  if (!existsSync(buildRoot)) return;
+
+  const written = new Set([
+    ...results.flatMap((result) => [result.htmlPath, result.clientPath]),
+    ...assets,
+  ]);
+
+  const generated = new Set(['index.html', 'page.client.js']);
+  const emptied = [];
+
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        walk(full);
+        // A directory left empty held only pages that are now gone.
+        if (readdirSync(full).length === 0) emptied.push(full);
+        continue;
+      }
+
+      if (generated.has(entry.name) && !written.has(full)) rmSync(full);
+    }
+  };
+
+  walk(buildRoot);
+
+  // Innermost first, so a nested route's directories go too.
+  for (const dir of emptied.reverse()) {
+    if (existsSync(dir) && readdirSync(dir).length === 0) rmSync(dir, { recursive: true });
+  }
 }
 
 // Everything in public/ is copied to the build root untouched, so a
