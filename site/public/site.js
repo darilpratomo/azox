@@ -122,3 +122,93 @@ document.addEventListener('click', (event) => {
 
   flash(button, 'Saved');
 });
+
+/* ---------- Mobile menu ---------- */
+
+// Below the desktop breakpoint the nav links used to scroll sideways
+// off the screen with nothing to open them — you had to swipe the bar
+// to find them. This gives them a button and a panel.
+
+const nav = document.querySelector('[data-nav]');
+const navToggle = document.querySelector('[data-nav-toggle]');
+const navMenu = document.querySelector('[data-nav-menu]');
+
+if (nav && navToggle && navMenu) {
+  const setOpen = (open) => {
+    nav.dataset.open = String(open);
+    navToggle.setAttribute('aria-expanded', String(open));
+    navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    // The page behind a full-height panel must not scroll with it.
+    document.body.style.overflow = open ? 'hidden' : '';
+  };
+
+  navToggle.addEventListener('click', () => setOpen(nav.dataset.open !== 'true'));
+
+  // Following a link inside the panel should close it — with the
+  // client-side router the page swaps without a reload, so nothing
+  // else would.
+  navMenu.addEventListener('click', (event) => {
+    if (event.target.closest('a')) setOpen(false);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && nav.dataset.open === 'true') {
+      setOpen(false);
+      navToggle.focus();
+    }
+  });
+
+  // Resizing past the breakpoint leaves the panel open but invisible,
+  // which would silently keep the body unscrollable.
+  window.matchMedia('(min-width: 860px)').addEventListener('change', (event) => {
+    if (event.matches) setOpen(false);
+  });
+}
+
+/* ---------- Docs navigation on small screens ---------- */
+
+// The sidebar is eleven links. Stacked above the content on a phone it
+// meant scrolling past the whole index to reach the page itself, so
+// below the breakpoint it collapses into a summary you can open.
+
+const sidebar = document.querySelector('[data-sidebar]');
+const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+
+if (sidebar && sidebarToggle) {
+  const label = sidebarToggle.querySelector('[data-sidebar-label]');
+
+  const setOpen = (open) => {
+    sidebar.dataset.open = String(open);
+    sidebarToggle.setAttribute('aria-expanded', String(open));
+    if (label) label.textContent = open ? 'Hide contents' : 'Browse docs';
+  };
+
+  sidebarToggle.addEventListener('click', () => setOpen(sidebar.dataset.open !== 'true'));
+  sidebar.addEventListener('click', (event) => {
+    if (event.target.closest('a')) setOpen(false);
+  });
+}
+
+/* ---------- Reveal on scroll ---------- */
+
+// Sections fade and rise as they come into view. The CSS leaves them
+// visible by default, so a page without JavaScript — which is most of
+// this site — reads exactly the same, just without the motion.
+
+if (wantsMotion && 'IntersectionObserver' in window) {
+  const revealed = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.dataset.revealed = 'true';
+        revealed.unobserve(entry.target);
+      }
+    },
+    { rootMargin: '0px 0px -12% 0px', threshold: 0.05 }
+  );
+
+  for (const el of document.querySelectorAll('.reveal')) {
+    el.dataset.revealed = 'false';
+    revealed.observe(el);
+  }
+}

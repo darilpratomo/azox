@@ -1401,3 +1401,389 @@ td code {
   margin-top: 0;
   font-size: 0.82rem;
 }
+
+/* ==========================================================
+   Mobile navigation
+   ==========================================================
+   The links used to sit in a row that scrolled sideways off the
+   screen, with nothing to open them — you had to swipe the bar to
+   discover the rest. Below 860px they now live in a panel. */
+
+.nav-toggle {
+  display: none;
+  position: relative;
+  /* Above the panel, which is fixed and would otherwise cover the
+     button that closes it. */
+  z-index: 2;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.nav-toggle:hover {
+  border-color: var(--accent);
+}
+
+.nav-toggle-bar {
+  position: absolute;
+  left: 50%;
+  width: 1.05rem;
+  height: 1.5px;
+  margin-left: -0.525rem;
+  border-radius: 2px;
+  background: var(--text);
+  transition: transform 0.34s var(--ease), opacity 0.22s var(--ease);
+}
+.nav-toggle-bar:nth-child(1) { top: 0.92rem; }
+.nav-toggle-bar:nth-child(2) { top: 1.24rem; }
+.nav-toggle-bar:nth-child(3) { top: 1.56rem; }
+
+/* The three bars fold into a cross. */
+[data-open='true'] .nav-toggle-bar:nth-child(1) {
+  transform: translateY(0.32rem) rotate(45deg);
+}
+[data-open='true'] .nav-toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+[data-open='true'] .nav-toggle-bar:nth-child(3) {
+  transform: translateY(-0.32rem) rotate(-45deg);
+}
+
+@media (max-width: 859px) {
+  .nav-toggle {
+    display: block;
+  }
+
+  .nav-links {
+    position: fixed;
+    inset: var(--nav-height) 0 auto 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0.6rem 1.25rem 1.4rem;
+    /* Fully opaque: at 0.97 the article behind it still showed
+       through the panel, which read as a rendering fault rather than
+       a menu. The backdrop is what darkens the rest of the page. */
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 28px 60px -30px rgba(0, 0, 0, 0.9);
+
+    /* Collapsed by default, and not reachable by keyboard while it is. */
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transition: max-height 0.38s var(--ease), opacity 0.26s var(--ease),
+      visibility 0s linear 0.38s;
+  }
+
+  [data-open='true'] .nav-links {
+    max-height: calc(100vh - var(--nav-height));
+    opacity: 1;
+    visibility: visible;
+    overflow-y: auto;
+    transition: max-height 0.42s var(--ease), opacity 0.3s var(--ease),
+      visibility 0s;
+  }
+
+  .nav-links a {
+    padding: 0.95rem 0.2rem;
+    font-size: 1.02rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-links a:last-child {
+    border-bottom: 0;
+  }
+  /* The desktop underline indicator has no place in a stacked list. */
+  .nav-links a::after {
+    display: none;
+  }
+  .nav-links a.is-active {
+    color: var(--accent);
+  }
+
+  /* Each row arrives just after the one above it. */
+  [data-open='true'] .nav-links a {
+    animation: nav-row 0.4s var(--ease) both;
+  }
+  [data-open='true'] .nav-links a:nth-child(1) { animation-delay: 0.02s; }
+  [data-open='true'] .nav-links a:nth-child(2) { animation-delay: 0.06s; }
+  [data-open='true'] .nav-links a:nth-child(3) { animation-delay: 0.1s; }
+  [data-open='true'] .nav-links a:nth-child(4) { animation-delay: 0.14s; }
+  [data-open='true'] .nav-links a:nth-child(5) { animation-delay: 0.18s; }
+  [data-open='true'] .nav-links a:nth-child(6) { animation-delay: 0.22s; }
+}
+
+@keyframes nav-row {
+  from { opacity: 0; transform: translateY(-0.5rem); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Everything below the panel dims while it is open, so the menu reads
+   as a layer above the page rather than as part of it. */
+@media (max-width: 859px) {
+  .nav::after {
+    content: '';
+    position: fixed;
+    inset: var(--nav-height) 0 0 0;
+    z-index: -1;
+    background: rgba(4, 5, 8, 0.72);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.32s var(--ease), visibility 0s linear 0.32s;
+  }
+
+  .nav[data-open='true']::after {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.32s var(--ease), visibility 0s;
+  }
+}
+
+/* ==========================================================
+   Docs sidebar on small screens
+   ==========================================================
+   Eleven links stacked above the article meant scrolling past the
+   whole index before reaching the page you asked for. */
+
+.sidebar-toggle {
+  display: none;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease);
+}
+.sidebar-toggle:hover {
+  border-color: var(--accent);
+}
+
+.sidebar-chevron {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 1.5px solid var(--text-dim);
+  border-bottom: 1.5px solid var(--text-dim);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.3s var(--ease);
+}
+[data-open='true'] > .sidebar-toggle .sidebar-chevron {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+@media (max-width: 939px) {
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .sidebar-panel {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transition: max-height 0.4s var(--ease), opacity 0.26s var(--ease),
+      visibility 0s linear 0.4s;
+  }
+
+  .sidebar[data-open='true'] .sidebar-panel {
+    max-height: 80vh;
+    overflow-y: auto;
+    opacity: 1;
+    visibility: visible;
+    margin-top: 1rem;
+    transition: max-height 0.44s var(--ease), opacity 0.3s var(--ease),
+      visibility 0s;
+  }
+}
+
+/* ==========================================================
+   Reveal on scroll
+   ==========================================================
+   Set by site.js. The default is visible, so a page without
+   JavaScript — which is most of this site — reads the same. */
+
+.reveal[data-revealed='false'] {
+  opacity: 0;
+  transform: translateY(1.4rem);
+}
+.reveal[data-revealed='true'] {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal[data-revealed='false'] {
+    opacity: 1;
+    transform: none;
+  }
+  .nav-links,
+  .sidebar-panel,
+  .nav-toggle-bar,
+  .sidebar-chevron {
+    transition-duration: 0.01ms !important;
+  }
+  [data-open='true'] .nav-links a {
+    animation: none;
+  }
+}
+
+/* ==========================================================
+   Depth
+   ==========================================================
+   Flat surfaces on a flat ground read as a template. What follows adds
+   depth without going back to gradient text: a slow aurora behind the
+   page, glass on raised surfaces, and light that responds to the
+   pointer. All of it is decoration — remove this block and the site
+   still works, only plainer. */
+
+/* A wash that drifts behind everything, fixed so it does not scroll
+   with the content. Very low opacity: it should be felt, not seen. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20% -10% auto -10%;
+  height: 78vh;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 30rem at 18% 0%, rgba(212, 248, 53, 0.1), transparent 62%),
+    radial-gradient(36rem 28rem at 82% 8%, rgba(129, 140, 248, 0.11), transparent 64%),
+    radial-gradient(30rem 26rem at 52% 32%, rgba(125, 211, 160, 0.07), transparent 66%);
+  filter: blur(28px);
+  animation: aurora 26s var(--ease) infinite alternate;
+}
+
+@keyframes aurora {
+  0%   { transform: translate3d(-2%, -1%, 0) scale(1); }
+  50%  { transform: translate3d(2%, 2%, 0) scale(1.07); }
+  100% { transform: translate3d(-1%, 1%, 0) scale(1.02); }
+}
+
+/* A fine grain over the whole page. It stops large dark areas from
+   looking like flat fill, which is most of what makes a dark theme
+   feel cheap. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Raised surfaces get a hairline of light along the top edge — the
+   cue that says "this sits above the page" rather than "this is a
+   rectangle of a different colour". */
+.card,
+.stat-row,
+.code,
+.pg-pane {
+  position: relative;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 12px 34px -18px rgba(0, 0, 0, 0.75);
+}
+
+.card {
+  transition:
+    transform 0.36s var(--ease),
+    border-color 0.36s var(--ease),
+    box-shadow 0.36s var(--ease);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-bright);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 26px 50px -22px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(212, 248, 53, 0.08);
+}
+
+/* The primary button carries a real glow, since it is the one thing
+   on the page that should pull the eye. */
+.btn-primary {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 10px 30px -10px rgba(212, 248, 53, 0.45);
+  transition: transform 0.24s var(--ease), box-shadow 0.24s var(--ease);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 16px 40px -12px rgba(212, 248, 53, 0.62);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* The nav gains a hairline that brightens as the page scrolls under
+   it, so the bar separates from the content instead of floating. */
+.nav {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* The hero's headline arrives rather than appearing. */
+.hero-tagline,
+.hero h1 {
+  animation: rise 0.85s var(--ease) both;
+}
+.hero-tagline { animation-delay: 0.08s; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(1.2rem); }
+  to { opacity: 1; transform: none; }
+}
+
+/* A statistic counts up into place. */
+.stat-value {
+  animation: rise 0.7s var(--ease) both;
+}
+.stat:nth-child(1) .stat-value { animation-delay: 0.18s; }
+.stat:nth-child(2) .stat-value { animation-delay: 0.26s; }
+.stat:nth-child(3) .stat-value { animation-delay: 0.34s; }
+.stat:nth-child(4) .stat-value { animation-delay: 0.42s; }
+
+/* A link underline that grows from the left rather than blinking on. */
+.doc-body a:not(.card-run):not(.card-more) {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.3s var(--ease);
+}
+.doc-body a:not(.card-run):not(.card-more):hover {
+  background-size: 100% 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
+  .hero-tagline,
+  .hero h1,
+  .stat-value {
+    animation: none;
+  }
+  .card:hover,
+  .btn-primary:hover {
+    transform: none;
+  }
+}

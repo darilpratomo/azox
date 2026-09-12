@@ -5,7 +5,15 @@
   const { current } = props();
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" data-sidebar data-open="false">
+  <!-- Below the desktop breakpoint the eleven links collapse behind
+       this, so the page itself is not pushed a screen down. -->
+  <button class="sidebar-toggle" type="button" aria-expanded="false" data-sidebar-toggle>
+    <span data-sidebar-label>Browse docs</span>
+    <span class="sidebar-chevron" aria-hidden="true"></span>
+  </button>
+
+  <div class="sidebar-panel">
   <div class="sidebar-group">
     <p class="sidebar-title">Start here</p>
     <ul>
@@ -33,5 +41,6 @@
       <li><a href="/docs/deploy" class={current === '/docs/deploy' ? 'is-active' : ''}>Deployment</a></li>
       <li><a href="/docs/limitations" class={current === '/docs/limitations' ? 'is-active' : ''}>Limitations</a></li>
     </ul>
+  </div>
   </div>
 </aside>

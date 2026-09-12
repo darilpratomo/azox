@@ -14,13 +14,29 @@
   const { current } = props();
 </script>
 
-<nav class="nav">
+<nav class="nav" data-nav>
   <div class="container nav-inner">
     <a class="brand" href="/">
       <span class="brand-mark">Azox</span>
       <span class="brand-version">v{pkg.version}</span>
     </a>
-    <div class="nav-links">
+
+    <!-- Shown only below the desktop breakpoint. The links used to
+         scroll sideways off the screen with nothing to open them. -->
+    <button
+      class="nav-toggle"
+      type="button"
+      aria-label="Open menu"
+      aria-expanded="false"
+      aria-controls="nav-menu"
+      data-nav-toggle
+    >
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+    </button>
+
+    <div class="nav-links" id="nav-menu" data-nav-menu>
       <a href="/docs" class={current === 'docs' ? 'is-active' : ''}>Docs</a>
       <a href="/learn" class={current === 'learn' ? 'is-active' : ''}>Tutorial</a>
       <a href="/templates" class={current === 'templates' ? 'is-active' : ''}>Templates</a>
