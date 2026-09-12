@@ -199,11 +199,21 @@ async function runPageModule(next, pageHref) {
 function restoreScroll(restore) {
   if (restore) return; // The browser restores the position itself.
 
-  const { hash } = location;
-  const target = hash && document.querySelector(hash);
+  const target = elementForHash(location.hash);
 
   if (target) target.scrollIntoView();
   else window.scrollTo(0, 0);
+}
+
+// A hash is not always a selector. A page may use it to carry state —
+// "#template=landing" — and handing that to querySelector throws
+// "not a valid selector", which stopped the scroll being restored at
+// all and put an error in every visitor's console.
+function elementForHash(hash) {
+  if (!hash || hash.length < 2) return null;
+
+  // getElementById takes an id, not a selector, so nothing can throw.
+  return document.getElementById(decodeURIComponent(hash.slice(1)));
 }
 
 export function currentHref() {

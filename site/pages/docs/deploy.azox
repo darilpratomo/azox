@@ -128,6 +128,16 @@ jobs:
         </p>
       </div>
 
+      <div class="note note-warn">
+        <p>
+          <strong>Add an empty <code>public/.nojekyll</code>.</strong>
+          Without it GitHub runs Jekyll over the output, which drops any
+          file or folder beginning with an underscore. For a custom
+          domain, put the hostname in <code>public/CNAME</code> — both are
+          copied to the build root like any other asset.
+        </p>
+      </div>
+
       <h2>Any static host</h2>
       <p>
         The output has no special requirements. Upload it to S3, nginx, or
@@ -148,7 +158,7 @@ python3 -m http.server 4321</text></CodeBlock>
 
       <h2>Next</h2>
       <ul>
-        <li><a href="/docs/limitations">Limitations</a> — what Azox does not do yet</li>
+        <li><a href="/docs/limitations">Limitations</a> — what Azox deliberately does not do</li>
       </ul>
     </main>
   </div>

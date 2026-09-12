@@ -1,0 +1,5 @@
+{
+  "name": "Landing page",
+  "component": "<script>\n  const { title, body } = props();\n</script>\n\n<article class=\"card\">\n  <h2>{title}</h2>\n  <p>{body}</p>\n</article>",
+  "page": "<script>\n  import Card from './Card.azox';\n  import { signal } from 'azox/reactivity';\n\n  const plan = signal('monthly');\n</script>\n\n<main>\n  <h1>Ship it this week</h1>\n  <p class=\"lede\">A landing page with a hero, features and a price toggle.</p>\n\n  <button on:click={() => plan.set(plan() === 'monthly' ? 'yearly' : 'monthly')}>\n    Billing: {plan()}\n  </button>\n\n  <p class=\"price\">\n    <if cond={plan() === 'monthly'}>$12 / month<else />$120 / year</if>\n  </p>\n\n  <section class=\"grid\">\n    <Card title=\"Fast\" body=\"No Virtual DOM. Updates write to one node.\" />\n    <Card title=\"Small\" body=\"A 2 KB runtime, and no dependencies.\" />\n    <Card title=\"Plain\" body=\"HTML you already know, with {expressions}.\" />\n  </section>\n</main>"
+}

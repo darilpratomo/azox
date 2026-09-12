@@ -353,7 +353,7 @@ python3 -m http.server 4321</text></CodeBlock>
       <h2>Where to go next</h2>
       <ul>
         <li><a href="/templates">Templates</a> — complete sites to start from</li>
-        <li><a href="/docs/limitations">Limitations</a> — what Azox cannot do yet, before you commit to it</li>
+        <li><a href="/docs/limitations">Limitations</a> — what Azox deliberately does not do, before you commit to it</li>
         <li><a href="/playground">Playground</a> — try ideas without creating a project</li>
       </ul>
     </div>

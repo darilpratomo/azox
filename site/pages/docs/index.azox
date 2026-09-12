@@ -25,9 +25,11 @@
 
       <div class="note">
         <p>
-          <strong>Stable.</strong> Azox is at v1.0.1. It works end
-          to end, but the API can still change. See
-          <a href="/docs/limitations">limitations</a> for what it does not do yet.
+          <strong>Stable.</strong> Azox is at v1.0.1. The template
+          syntax, the reactivity exports and the shape of the build
+          output will not change without a 2.0. See
+          <a href="/docs/limitations">limitations</a> for what it
+          deliberately does not do.
         </p>
       </div>
 

@@ -284,7 +284,7 @@
         <h3>Read the documentation</h3>
         <p>
           Reactivity, template syntax, components, routing, the CLI, and an
-          honest page about what Azox cannot do yet.
+          honest page about what Azox deliberately does not do.
         </p>
         <span class="card-more">Read the docs →</span>
       </a>

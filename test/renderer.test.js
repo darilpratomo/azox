@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { parseAzox } from '../core/compiler/parser.js';
 import { renderToHtml } from '../core/renderer/renderToHtml.js';
+import { declaredNames } from '../core/renderer/serverScope.js';
 
 const render = (source, scope = {}) => renderToHtml(parseAzox(source), scope);
 
@@ -150,4 +151,61 @@ test('a payload in href cannot add an event handler', () => {
 
 test('an ampersand in text is encoded once, not twice', () => {
   assert.equal(renderToHtml(parseAzox('<p>{v}</p>'), { v: 'a & b' }), '<p>a &amp; b</p>');
+});
+
+/* ---------- what a script declares ---------- */
+
+// Regression: declaredNames matched any `const` anywhere in the script,
+// so a variable inside a callback was returned from the outer scope —
+// "timer is not defined", which took down any page holding an interval
+// in onMount. That is the ordinary way to write a timer.
+test('a name declared inside a callback is not treated as a declaration', () => {
+  const names = declaredNames(`const visitors = signal(1);
+onMount(() => {
+  const timer = setInterval(() => {}, 900);
+  return () => clearInterval(timer);
+});`);
+
+  assert.deepEqual(names, ['visitors']);
+});
+
+test('top-level declarations of every kind are collected', () => {
+  const names = declaredNames(`const a = 1;
+let b = 2;
+var c = 3;
+function f() {}
+class C {}`);
+
+  assert.deepEqual(names.sort(), ['C', 'a', 'b', 'c', 'f']);
+});
+
+test('a destructured declaration is collected, aliases included', () => {
+  assert.deepEqual(declaredNames('const { x, y: z } = props();').sort(), ['x', 'z']);
+});
+
+test('a destructured declaration inside a callback is not', () => {
+  const names = declaredNames(`const top = 1;
+onMount(() => {
+  const { inner } = thing;
+});`);
+
+  assert.deepEqual(names, ['top']);
+});
+
+test('a brace inside a string does not confuse the depth count', () => {
+  assert.deepEqual(declaredNames('const msg = "a { b";\nconst ok = 1;').sort(), ['msg', 'ok']);
+});
+
+test('an object literal value does not hide what follows it', () => {
+  assert.deepEqual(declaredNames('const cfg = { deep: 1 };\nconst after = 2;').sort(), [
+    'after',
+    'cfg',
+  ]);
+});
+
+test('a function declared at the top level is collected', () => {
+  assert.deepEqual(declaredNames('const a = 1;\nfunction go() { const inner = 2; }').sort(), [
+    'a',
+    'go',
+  ]);
 });

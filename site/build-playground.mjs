@@ -39,6 +39,9 @@ const EXPORTS = [
   'renderToHtml',
   'createMemoryResolver',
   'BuildError',
+  // The playground evaluates page scripts the way the build does,
+  // rather than keeping a second implementation that drifts.
+  'evaluateScript',
 ];
 
 function stripModuleSyntax(source) {

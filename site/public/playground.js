@@ -7,6 +7,7 @@ import {
   compileToModule,
   renderToHtml,
   createMemoryResolver,
+  evaluateScript,
 } from '/azox-compiler.js';
 
 const PAGE_ID = '/index.azox';
@@ -174,33 +175,21 @@ async function compile() {
 
 // Mirrors what the build does for server rendering: run the page's
 // script with a non-reactive signal stub to get initial values.
+// Evaluates a page's <script> the same way the build does, by calling
+// the framework's own evaluateScript.
+//
+// This used to be a second implementation living here, which drifted:
+// it knew about signal and computed but not onMount or onCleanup, so a
+// page using a lifecycle hook failed with "onMount is not defined"
+// while the same page built fine from the CLI.
 function buildScope(source) {
   const match = source.match(/<script>([\s\S]*?)<\/script>/);
   if (!match) return {};
 
   const body = match[1].replace(/^\s*import\s.+?;?\s*$/gm, '');
-  const names = [...body.matchAll(/(?:const|let|var)\s+(\w+)\s*=/g)].map((m) => m[1]);
-
-  const signal = (initial) => {
-    let value = initial;
-    const read = () => value;
-    read.set = (next) => {
-      value = typeof next === 'function' ? next(value) : next;
-    };
-    read.peek = () => value;
-    return read;
-  };
-
-  // Server rendering needs only the current value, so a computed here
-  // just calls its function. The real runtime takes over in the frame.
-  const computed = (fn) => () => fn();
 
   try {
-    return new Function(
-      'signal',
-      'computed',
-      `${body}\nreturn { ${names.join(', ')} };`
-    )(signal, computed);
+    return evaluateScript(body);
   } catch (error) {
     throw new Error(`in <script>: ${error.message}`);
   }
@@ -269,9 +258,41 @@ for (const tab of els.tabs) {
 document.querySelector('[data-reset]')?.addEventListener('click', () => {
   els.page.value = STARTER.page;
   els.component.value = STARTER.component;
+  history.replaceState(null, '', location.pathname);
   compile();
 });
 
-els.page.value = STARTER.page;
-els.component.value = STARTER.component;
-compile();
+// A template can be opened here from elsewhere on the site:
+// /playground/#template=blog loads that template's files.
+//
+// The templates page used to offer only "Jump to code" — a scroll to a
+// wall of source with no way to run it.
+async function templateFromHash() {
+  const match = location.hash.match(/^#template=([a-z-]+)$/);
+  if (!match) return null;
+
+  try {
+    const response = await fetch(`/templates/${match[1]}.json`);
+    if (!response.ok) return null;
+
+    const template = await response.json();
+    if (typeof template.page !== 'string') return null;
+
+    return { page: template.page, component: template.component ?? STARTER.component };
+  } catch {
+    // A missing or malformed template is not worth an error bar: the
+    // starter is a sensible thing to show instead.
+    return null;
+  }
+}
+
+async function start() {
+  const template = await templateFromHash();
+
+  els.page.value = template?.page ?? STARTER.page;
+  els.component.value = template?.component ?? STARTER.component;
+  compile();
+}
+
+start();
+window.addEventListener('hashchange', start);

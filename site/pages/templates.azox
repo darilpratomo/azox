@@ -43,7 +43,10 @@
         <div class="template-body">
           <h3>Landing page</h3>
           <p>A hero, a feature grid and a call to action. Two files.</p>
-          <a class="card-more" href="#landing">Jump to code →</a>
+          <div class="card-actions">
+            <a class="card-run" href="/playground/#template=landing">Open in playground →</a>
+            <a class="card-more" href="#landing">Jump to code</a>
+          </div>
         </div>
       </div>
 
@@ -58,7 +61,10 @@
         <div class="template-body">
           <h3>Portfolio</h3>
           <p>An intro and a project list built from a reusable card.</p>
-          <a class="card-more" href="#portfolio">Jump to code →</a>
+          <div class="card-actions">
+            <a class="card-run" href="/playground/#template=portfolio">Open in playground →</a>
+            <a class="card-more" href="#portfolio">Jump to code</a>
+          </div>
         </div>
       </div>
 
@@ -75,7 +81,10 @@
         <div class="template-body">
           <h3>Blog</h3>
           <p>An index page and a post page, showing nested routing.</p>
-          <a class="card-more" href="#blog">Jump to code →</a>
+          <div class="card-actions">
+            <a class="card-run" href="/playground/#template=blog">Open in playground →</a>
+            <a class="card-more" href="#blog">Jump to code</a>
+          </div>
         </div>
       </div>
 
@@ -90,7 +99,10 @@
         <div class="template-body">
           <h3>Dashboard</h3>
           <p>Interactive stat tiles — the most reactive of the four.</p>
-          <a class="card-more" href="#dashboard">Jump to code →</a>
+          <div class="card-actions">
+            <a class="card-run" href="/playground/#template=dashboard">Open in playground →</a>
+            <a class="card-more" href="#dashboard">Jump to code</a>
+          </div>
         </div>
       </div>
     </div>

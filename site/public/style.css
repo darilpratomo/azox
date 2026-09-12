@@ -50,8 +50,11 @@
   --accent-3: #818cf8;
   --accent-warm: #fb923c;
   --accent-dim: rgba(212, 248, 53, 0.11);
-  --gradient: linear-gradient(115deg, var(--accent), var(--accent-2));
-  --gradient-wide: linear-gradient(115deg, var(--accent), var(--accent-2) 52%, var(--accent-3));
+  /* Flat, not gradients: one accent that reads the same everywhere.
+     A gradient makes the same element look like two different colours
+     depending on where it sits on the page. */
+  --gradient: var(--accent);
+  --gradient-wide: var(--accent);
 
   /* Syntax highlighting */
   --code-tag: #7ee3ff;
@@ -104,9 +107,7 @@ body::before {
   position: fixed;
   inset: -20%;
   background:
-    radial-gradient(42rem 28rem at 16% 4%, rgba(212, 248, 53, 0.06), transparent 64%),
-    radial-gradient(38rem 26rem at 84% 0%, rgba(125, 211, 160, 0.07), transparent 64%),
-    radial-gradient(34rem 24rem at 55% 88%, rgba(251, 146, 60, 0.045), transparent 66%);
+    none;
   pointer-events: none;
   z-index: 0;
   animation: drift 26s var(--ease) infinite alternate;
@@ -410,12 +411,7 @@ hr {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    100deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.32) 50%,
-    transparent 80%
-  );
+  background: rgba(255, 255, 255, 0.18);
   transform: translateX(-100%);
   transition: transform 0.7s var(--ease);
 }
@@ -555,13 +551,7 @@ code {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(212, 248, 53, 0.05) 48%,
-    rgba(125, 211, 160, 0.05) 52%,
-    transparent 100%
-  );
+  background: rgba(212, 248, 53, 0.05);
   pointer-events: none;
   transform: translateY(-100%);
   animation: scan 2.2s var(--ease) 0.35s both;
@@ -613,11 +603,7 @@ code {
 }
 
 .hero-tagline {
-  background: var(--gradient-wide);
-  background-size: 220% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
   animation: shimmer 9s linear infinite;
 }
 
@@ -733,9 +719,7 @@ code {
 
 .card {
   position: relative;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 40%),
-    var(--surface);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.6rem;
@@ -890,7 +874,7 @@ code {
 /* An alternate band, to break up a long stack of identical sections. */
 .section-alt {
   background:
-    linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.014) 30%, transparent);
+    none;
   border-block: 1px solid var(--border);
 }
 
@@ -1336,7 +1320,7 @@ td code {
   background: var(--border-bright);
 }
 .wire i.tall { height: 2.2rem; }
-.wire i.accent { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.wire i.accent { background: var(--accent); }
 .wire i.half { width: 52%; }
 .wire i.third { width: 34%; }
 .wire-row {
@@ -1387,4 +1371,33 @@ td code {
   .reveal {
     opacity: 1;
   }
+}
+
+/* A template card offers two things: run it, or read it. The first is
+   the point of the page — before this, every card only scrolled to a
+   wall of source with no way to try it. */
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+}
+.card-run {
+  color: var(--bg);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.card-run:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -8px rgba(212, 248, 53, 0.5);
+}
+.card-actions .card-more {
+  margin-top: 0;
+  font-size: 0.82rem;
 }

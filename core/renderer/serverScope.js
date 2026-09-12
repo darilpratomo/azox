@@ -44,18 +44,25 @@ export function serverOnCleanup() {}
 export function declaredNames(script) {
   const names = new Set();
 
-  for (const match of script.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g)) {
+  // Only what the script declares at its top level. A name declared
+  // inside a callback — `const timer` within onMount, say — is a local
+  // of that function, so returning it from the outer scope throws
+  // "timer is not defined" and takes the whole page down.
+  const topLevel = topLevelSource(script);
+
+  for (const match of topLevel.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g)) {
     names.add(match[1]);
   }
-  for (const match of script.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g)) {
+  for (const match of topLevel.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g)) {
     names.add(match[1]);
   }
-  for (const match of script.matchAll(/class\s+([A-Za-z_$][\w$]*)/g)) {
+  for (const match of topLevel.matchAll(/class\s+([A-Za-z_$][\w$]*)/g)) {
     names.add(match[1]);
   }
 
   // Destructured declarations: const { a, b: c, d = 1 } = …
-  for (const match of script.matchAll(/(?:const|let|var)\s*\{([^}]*)\}\s*=/g)) {
+  //
+  for (const match of topLevel.matchAll(/(?:const|let|var)\s*\{([^}]*)\}\s*=/g)) {
     for (const part of match[1].split(',')) {
       const name = part.split(':').pop().split('=')[0].trim();
       if (/^[A-Za-z_$][\w$]*$/.test(name)) names.add(name);
@@ -63,6 +70,97 @@ export function declaredNames(script) {
   }
 
   return [...names];
+}
+
+// Blanks out everything nested inside braces, brackets or parentheses,
+// leaving the top-level text with its offsets intact — so a declaration
+// inside a function body is no longer visible to the patterns above.
+//
+// Strings, template literals and comments are blanked too: a brace in
+// one of them would otherwise throw the depth count off.
+function topLevelSource(script) {
+  let out = '';
+  let depth = 0;
+  let i = 0;
+
+  while (i < script.length) {
+    const c = script[i];
+    const next = script[i + 1];
+
+    // Comments.
+    if (c === '/' && next === '/') {
+      const end = script.indexOf('\n', i);
+      const stop = end === -1 ? script.length : end;
+      out += ' '.repeat(stop - i);
+      i = stop;
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      const end = script.indexOf('*/', i + 2);
+      const stop = end === -1 ? script.length : end + 2;
+      out += ' '.repeat(stop - i);
+      i = stop;
+      continue;
+    }
+
+    // Strings and template literals: skipped whole, so braces inside
+    // them do not count. A template's ${...} is skipped with it, which
+    // is fine — nothing is declared at the top level in there.
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c;
+      let j = i + 1;
+      while (j < script.length) {
+        if (script[j] === '\\') j += 2;
+        else if (script[j] === quote) break;
+        else j++;
+      }
+      const stop = Math.min(j + 1, script.length);
+      out += ' '.repeat(stop - i);
+      i = stop;
+      continue;
+    }
+
+    // The delimiter itself is kept when it opens at the top level, so
+    // `function f(` and `const { a } =` still match; what is nested
+    // inside is blanked.
+    //
+    // The exception is a destructuring pattern — `const { a, b } = …` —
+    // whose names are the thing being declared, so its contents are
+    // kept even though they sit one level in.
+    if (c === '{' || c === '(' || c === '[') {
+      const destructuring = c === '{' && depth === 0 && /(?:const|let|var)\s*$/.test(out);
+
+      out += depth === 0 ? c : ' ';
+      depth++;
+
+      if (destructuring) {
+        const close = script.indexOf('}', i + 1);
+        if (close !== -1) {
+          out += script.slice(i + 1, close + 1);
+          depth--;
+          i = close + 1;
+          continue;
+        }
+      }
+
+      i++;
+      continue;
+    }
+
+    if (c === '}' || c === ')' || c === ']') {
+      depth = Math.max(0, depth - 1);
+      out += depth === 0 ? c : ' ';
+      i++;
+      continue;
+    }
+
+    // Newlines are kept at any depth so line-anchored patterns still
+    // behave; everything else nested is blanked.
+    out += depth === 0 || c === '\n' ? c : ' ';
+    i++;
+  }
+
+  return out;
 }
 
 // Evaluates a script body and returns its declarations. `params` and

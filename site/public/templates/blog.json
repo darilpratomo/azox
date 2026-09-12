@@ -1,0 +1,5 @@
+{
+  "name": "Blog",
+  "component": "<script>\n  const { title, date, excerpt } = props();\n</script>\n\n<article class=\"post\">\n  <h2>{title}</h2>\n  <p class=\"date\">{date}</p>\n  <p>{excerpt}</p>\n</article>",
+  "page": "<script>\n  import Post from './Card.azox';\n  import { signal } from 'azox/reactivity';\n\n  const posts = signal([\n    { id: 1, title: 'Why signals', date: '12 Sep 2026', excerpt: 'A binding that writes to one node.' },\n    { id: 2, title: 'No Virtual DOM', date: '04 Sep 2026', excerpt: 'What you skip when you do not diff.' },\n    { id: 3, title: 'Building a compiler', date: '28 Aug 2026', excerpt: 'Markup in, direct DOM calls out.' },\n  ]);\n\n  const query = signal('');\n\n  const found = () =>\n    posts().filter((p) => p.title.toLowerCase().includes(query().toLowerCase()));\n</script>\n\n<main>\n  <h1>Notes</h1>\n\n  <input bind:value={query} placeholder=\"Search posts\" />\n\n  <if cond={found().length === 0}>\n    <p>Nothing matches \"{query()}\".</p>\n  </if>\n\n  <each item={found()} as=\"post\" key={post.id}>\n    <Post title={post.title} date={post.date} excerpt={post.excerpt} />\n  </each>\n</main>"
+}
