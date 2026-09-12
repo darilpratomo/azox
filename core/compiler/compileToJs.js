@@ -10,6 +10,14 @@
 let uid = 0;
 const nextId = () => `_el${uid++}`;
 
+// Tags that open an SVG document fragment. Everything inside one is in
+// the SVG namespace too, which is threaded down as `inSvg` — <circle>
+// and <path> carry no hint of their own.
+//
+// <a> and <script> exist in both languages; they are left as HTML,
+// which is what they almost always are on a page.
+const SVG_TAGS = new Set(['svg']);
+
 // Names the build resolved to constants — an inlined JSON import, say.
 // An expression reading only these can never change, so it is emitted
 // as text rather than wrapped in an effect. Set per compile.
@@ -383,7 +391,7 @@ if (typeof document !== 'undefined') {
 `;
 }
 
-function emitNode(node, statements, fallbackVar) {
+function emitNode(node, statements, fallbackVar, inSvg = false) {
   if (!node) return 'null';
 
   if (node.type === 'text') {
@@ -395,7 +403,7 @@ function emitNode(node, statements, fallbackVar) {
   if (node.type === 'fragment') {
     const varName = nextId();
     statements.push(`const ${varName} = document.createDocumentFragment();`);
-    appendChildren(varName, node.children, statements, fallbackVar);
+    appendChildren(varName, node.children, statements, fallbackVar, inSvg);
     return varName;
   }
 
@@ -404,13 +412,22 @@ function emitNode(node, statements, fallbackVar) {
   if (node.type === 'scope') return emitScope(node, statements, fallbackVar);
 
   const varName = nextId();
-  statements.push(`const ${varName} = document.createElement(${JSON.stringify(node.name)});`);
+
+  // An SVG element needs its namespace. createElement always makes an
+  // HTML element, so an inline <svg> compiled to something the browser
+  // laid out as an unknown HTML tag: present in the DOM, 0×0 on screen.
+  const svg = inSvg || SVG_TAGS.has(node.name);
+  statements.push(
+    svg
+      ? `const ${varName} = document.createElementNS("http://www.w3.org/2000/svg", ${JSON.stringify(node.name)});`
+      : `const ${varName} = document.createElement(${JSON.stringify(node.name)});`
+  );
 
   for (const [key, attr] of Object.entries(node.attrs)) {
     emitAttr(varName, key, attr, statements, node.name);
   }
 
-  appendChildren(varName, node.children, statements, fallbackVar);
+  appendChildren(varName, node.children, statements, fallbackVar, svg);
 
   return varName;
 }
@@ -669,9 +686,9 @@ function emitIf(node, statements) {
   );
 }
 
-function appendChildren(parentVar, children, statements, fallbackVar) {
+function appendChildren(parentVar, children, statements, fallbackVar, inSvg = false) {
   for (const child of children) {
-    const childVar = emitNode(child, statements, fallbackVar);
+    const childVar = emitNode(child, statements, fallbackVar, inSvg);
     if (childVar !== 'null') statements.push(`${parentVar}.appendChild(${childVar});`);
   }
 }

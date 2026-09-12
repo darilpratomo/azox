@@ -197,3 +197,50 @@ test('a single-element row still records the element itself', () => {
   // The guard is cheap and uniform; what matters is that it is there.
   assert.match(code, /_nodes = \[_el\d+\]\.flatMap/);
 });
+
+/* ---------- SVG ---------- */
+
+// Regression, seen on the site's own search button: createElement
+// always makes an HTML element, so an inline <svg> was laid out as an
+// unknown HTML tag — present in the DOM, 0×0 on screen, an empty box
+// where the icon should be.
+test('an svg element is created in the svg namespace', () => {
+  const code = compile('<button><svg viewBox="0 0 24 24"></svg></button>');
+
+  assert.match(code, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "svg"\)/);
+  assert.match(code, /createElement\("button"\)/, 'the button stays HTML');
+});
+
+// <circle> and <path> carry no hint of their own, so the namespace has
+// to be threaded down from the <svg> that opened it.
+test('children of an svg inherit the namespace', () => {
+  const code = compile('<svg><g><circle r="7" /><path d="M0 0" /></g></svg>');
+
+  for (const tag of ['svg', 'g', 'circle', 'path']) {
+    assert.match(
+      code,
+      new RegExp(`createElementNS\\("http://www\\.w3\\.org/2000/svg", "${tag}"\\)`),
+      `${tag} must be in the svg namespace`
+    );
+  }
+});
+
+test('markup after an svg returns to HTML', () => {
+  const code = compile('<div><svg><circle r="1" /></svg><span>after</span></div>');
+
+  assert.match(code, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "circle"\)/);
+  assert.match(code, /createElement\("span"\)/, 'a sibling of the svg is HTML again');
+  assert.match(code, /createElement\("div"\)/);
+});
+
+test('viewBox keeps its casing, which SVG requires', () => {
+  const code = compile('<svg viewBox="0 0 24 24"></svg>');
+  assert.match(code, /"viewBox"/);
+});
+
+test('an svg renders on the server too', () => {
+  assert.equal(
+    renderToHtml(parseAzox('<svg viewBox="0 0 16 16"><circle r="7" /></svg>'), {}),
+    '<svg viewBox="0 0 16 16"><circle r="7"></circle></svg>'
+  );
+});

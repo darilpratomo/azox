@@ -2085,12 +2085,18 @@ summary:focus-visible {
 }
 
 @media (max-width: 859px) {
-  /* The label and shortcut go; the icon stays, beside the menu. */
+  /* The label and shortcut go; the icon stays, beside the menu.
+     Only this one pushes right — the toggle claiming auto as well
+     split the free space and left the icon floating mid-bar. */
   .nav-search {
     margin-left: auto;
-    margin-right: 0.5rem;
+    margin-right: 0.45rem;
     min-height: 44px;
-    padding-inline: 0.7rem;
+    padding-inline: 0.75rem;
+  }
+
+  .nav-toggle {
+    margin-left: 0;
   }
   .nav-search-label,
   .nav-search-key {

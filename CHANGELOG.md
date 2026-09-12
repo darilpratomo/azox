@@ -5,6 +5,15 @@ between minor versions; each such change is listed here.
 
 ## Unreleased
 
+### Fixed
+
+- **Inline SVG was invisible.** Elements were made with
+  `createElement`, which always produces an HTML element, so an
+  `<svg>` in a `.azox` page was laid out as an unknown HTML tag —
+  present in the DOM, 0×0 on screen. `<svg>` and everything inside it
+  now use `createElementNS`. Found on this site's own search button,
+  which rendered as an empty box.
+
 ### Added
 
 - **`azox:navigate`**, dispatched on `document` after the client-side
