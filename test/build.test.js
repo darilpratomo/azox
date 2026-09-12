@@ -148,6 +148,39 @@ test('compile fails clearly when the page does not exist', () => {
   );
 });
 
+// Regression: an unknown flag was ignored, so `azox compile --pge=x`
+// built every page while looking as though it had built one.
+test('a mistyped flag is reported rather than ignored', () => {
+  assert.throws(
+    () => azox(['compile', '--pge=index']),
+    (error) => {
+      assert.equal(error.status, 1);
+      assert.match(error.stderr, /unknown flag for "compile": --pge/);
+      assert.match(error.stderr, /It accepts: --page/, 'and says what is valid');
+      return true;
+    }
+  );
+});
+
+test('a command with no flags says so', () => {
+  assert.throws(
+    () => azox(['doctor', '--wat']),
+    (error) => {
+      assert.match(error.stderr, /It accepts no flags/);
+      return true;
+    }
+  );
+});
+
+test('a valid flag still works', () => {
+  assert.doesNotThrow(() => azox(['compile', '--page=index']));
+});
+
+test('-v and --help are accepted anywhere', () => {
+  assert.doesNotThrow(() => azox(['-v']));
+  assert.doesNotThrow(() => azox(['--help']));
+});
+
 test('unknown commands exit non-zero', () => {
   assert.throws(
     () => azox(['nope']),

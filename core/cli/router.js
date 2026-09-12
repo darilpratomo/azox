@@ -20,11 +20,13 @@ export const registry = {
     run: devCommand,
     describe: 'Serve the project and rebuild on every change',
     examples: ['azox dev', 'azox dev --port=5000'],
+    flags: ['port', 'host'],
   },
   compile: {
     run: compileCommand,
     describe: 'Compile pages to HTML + hydration modules',
     examples: ['azox compile', 'azox compile --page=about'],
+    flags: ['page'],
   },
   doctor: {
     run: doctorCommand,
@@ -65,7 +67,33 @@ export function runCommand(command, context) {
     return;
   }
 
+  const unknown = unknownFlags(context.flags, entry.flags ?? []);
+
+  if (unknown.length) {
+    const plural = unknown.length === 1 ? 'flag' : 'flags';
+    console.error(
+      `Azox: unknown ${plural} for "${resolved}": ${unknown.map((f) => `--${f}`).join(', ')}`
+    );
+    console.error(
+      entry.flags?.length
+        ? `It accepts: ${entry.flags.map((f) => `--${f}`).join(', ')}.`
+        : 'It accepts no flags.'
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
   return entry.run({ ...context, registry });
+}
+
+// A mistyped flag used to be ignored, so `azox compile --pge=about`
+// quietly built every page while looking as though it had built one.
+// Command-selecting flags are allowed everywhere, since they are how
+// the command was chosen in the first place.
+function unknownFlags(flags, accepted) {
+  const always = new Set([...Object.keys(FLAG_ALIASES), ...accepted]);
+  return Object.keys(flags).filter((flag) => !always.has(flag));
 }
 
 function aliasFor(flags) {
