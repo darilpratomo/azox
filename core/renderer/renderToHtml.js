@@ -45,8 +45,26 @@ function renderNode(node, scope, outer, modules = {}) {
   const attrs = Object.entries(node.attrs)
     .filter(([key]) => !key.startsWith('on:'))
     .map(([key, attr]) => {
-      const value = attr.kind === 'static' ? attr.value : String(evalExpr(attr.expr, scope));
-      return ` ${key}="${escapeHtml(value)}"`;
+      // bind:value={draft} renders as the plain attribute, so the input
+      // arrives holding its value rather than showing "bind:value" in
+      // the markup and filling in once scripts run.
+      //
+      // A binding names the signal rather than calling it — that is what
+      // lets it write back — so it has to be read here.
+      const bound = key.startsWith('bind:');
+      const name = bound ? key.slice(5) : key;
+
+      const raw = attr.kind === 'static'
+        ? attr.value
+        : readAttrValue(attr.expr, scope, bound);
+
+      // A checkbox is checked by the attribute being present at all, so
+      // a falsy value must omit it rather than render checked="false".
+      if (name === 'checked' || name === 'selected') {
+        return raw ? ` ${name}` : '';
+      }
+
+      return ` ${name}="${escapeHtml(String(raw ?? ''))}"`;
     })
     .join('');
 
@@ -109,6 +127,13 @@ function renderEach(node, scope, outer, modules = {}) {
 function renderIf(node, scope, outer, modules = {}) {
   const branch = evalExpr(node.expr, scope) ? node.then : node.otherwise;
   return branch.map((child) => renderNode(child, scope, outer, modules)).join('');
+}
+
+// Reads an attribute expression. A bound one names a signal, so it is
+// called; anything else is evaluated as written.
+function readAttrValue(expr, scope, bound) {
+  const value = evalExpr(expr, scope);
+  return bound && typeof value === 'function' ? value() : value;
 }
 
 // Three kinds of text, three rules:

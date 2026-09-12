@@ -202,3 +202,16 @@ test('throws when a tag is left unterminated', () => {
 test('reports a mismatched closing tag rather than silently accepting it', () => {
   assert.throws(() => parseAzox('<div><span>x</div>'), /never closed|parse error/i);
 });
+
+// The docs once said an attribute expression could not hold a raw ">".
+// It can: the fix for "<" covered both. Asserted so the limitation
+// cannot quietly come back.
+test('a greater-than inside an attribute expression is fine', () => {
+  const { markup } = parseAzox('<p title={a() > b()}>x</p>');
+  assert.deepEqual(markup.attrs.title, { kind: 'expr', expr: 'a() > b()' });
+});
+
+test('a greater-than-or-equal in an attribute is fine too', () => {
+  const { markup } = parseAzox('<p class={a() >= b() ? "hi" : "lo"}>x</p>');
+  assert.equal(markup.attrs.class.expr, 'a() >= b() ? "hi" : "lo"');
+});

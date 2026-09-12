@@ -31,15 +31,31 @@ export function parseAzox(source) {
     .trim();
 
   const tokens = tokenize(template);
-  const { node, rest } = parseNode(tokens);
+
+  // Several roots become one fragment, so a component can return a pair
+  // of <li>s or a label beside its input without a wrapper element that
+  // exists only to satisfy the parser.
+  const roots = [];
+  let rest = tokens;
+
+  while (rest.length) {
+    const parsed = parseNode(rest);
+    if (!parsed.node) break;
+
+    roots.push(parsed.node);
+    rest = parsed.rest;
+  }
+
   if (rest.length) {
     throw new ParseError(`Azox parse error: unexpected trailing markup near "${rest[0]?.value ?? ''}"`);
   }
 
+  const markup = roots.length === 1 ? roots[0] : { type: 'fragment', children: roots };
+
   return {
     script,
     head,
-    markup: node,
+    markup,
     components: parseComponentImports(script),
     props: parsePropNames(script),
     // A dynamic page destructures its route parameters the same way a

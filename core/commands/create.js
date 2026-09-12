@@ -119,8 +119,7 @@ function starterPage(name) {
   </ul>
 
   <input
-    value={draft()}
-    on:input={(e) => draft.set(e.target.value)}
+    bind:value={draft}
     placeholder="Add a task"
   />
   <button on:click={() => {

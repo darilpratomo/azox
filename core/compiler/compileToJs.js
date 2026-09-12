@@ -407,7 +407,7 @@ function emitNode(node, statements, fallbackVar) {
   statements.push(`const ${varName} = document.createElement(${JSON.stringify(node.name)});`);
 
   for (const [key, attr] of Object.entries(node.attrs)) {
-    emitAttr(varName, key, attr, statements);
+    emitAttr(varName, key, attr, statements, node.name);
   }
 
   appendChildren(varName, node.children, statements, fallbackVar);
@@ -767,10 +767,20 @@ function decodeEntities(text) {
     .replace(/&amp;/g, '&');
 }
 
-function emitAttr(varName, key, attr, statements) {
+// Properties that must be set as properties rather than attributes:
+// setAttribute("value") only sets the *initial* value, so after a user
+// types, writing the attribute changes nothing they can see.
+const DOM_PROPERTIES = new Set(['value', 'checked', 'selected', 'indeterminate']);
+
+function emitAttr(varName, key, attr, statements, tagName) {
   if (key.startsWith('on:')) {
     const event = key.slice(3);
     statements.push(`${varName}.addEventListener(${JSON.stringify(event)}, ${attr.expr});`);
+    return;
+  }
+
+  if (key.startsWith('bind:')) {
+    emitBinding(varName, key.slice(5), attr, statements, tagName);
     return;
   }
 
@@ -779,8 +789,53 @@ function emitAttr(varName, key, attr, statements) {
     return;
   }
 
+  // A property has to be assigned, not set as an attribute — see
+  // DOM_PROPERTIES. Everything else is an attribute.
+  if (DOM_PROPERTIES.has(key)) {
+    statements.push(`effect(() => { ${varName}.${key} = ${attr.expr}; });`);
+    return;
+  }
+
   // Dynamic attribute: wrap in its own effect, same fine-grained rule as text.
   statements.push(`effect(() => { ${varName}.setAttribute(${JSON.stringify(key)}, String(${attr.expr})); });`);
+}
+
+// Two-way binding: the element shows the signal, and the signal follows
+// the element. Writing it by hand means a value= and an on:input= that
+// have to agree, and getting the event or the property wrong is easy —
+// a checkbox reports `checked`, not `value`, and a number input reports
+// a string.
+function emitBinding(varName, property, attr, statements, tagName) {
+  const signal = attr.expr.trim();
+
+  // The signal itself, not a call: `bind:value={draft}`. Binding needs
+  // to write back, which a value cannot do.
+  if (!/^[A-Za-z_$][\w$]*$/.test(signal)) {
+    throw new Error(
+      `Azox: bind:${property}={${signal}} needs a signal by name — ` +
+        `write bind:${property}={draft}, not bind:${property}={draft()}`
+    );
+  }
+
+  // A checkbox's state is `checked`, and the event that reports it is
+  // "change" rather than "input".
+  const isCheckbox = property === 'checked';
+  const event = isCheckbox || tagName === 'select' ? 'change' : 'input';
+
+  statements.push(`effect(() => { ${varName}.${property} = ${signal}(); });`);
+  statements.push(
+    `${varName}.addEventListener(${JSON.stringify(event)}, (_e) => ` +
+      `${signal}.set(${readTarget(property, tagName)}));`
+  );
+}
+
+// How the value is read back off the element. A number input reports a
+// string, so it is converted — otherwise arithmetic on the signal
+// silently concatenates.
+function readTarget(property, tagName) {
+  if (property === 'checked') return '_e.target.checked';
+  if (tagName === 'input') return '(_e.target.type === "number" ? _e.target.valueAsNumber : _e.target.value)';
+  return '_e.target.value';
 }
 
 // Component imports are resolved at build time and inlined, so the

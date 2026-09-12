@@ -111,13 +111,6 @@
         by someone else.
       </p>
 
-      <h2>Small syntax gaps</h2>
-      <ul>
-        <li>A page needs exactly one root element; there are no fragments</li>
-        <li>Attribute expressions cannot contain a raw <code>&gt;</code> outside a string</li>
-        <li>There is no <code>bind:</code> shorthand for two-way inputs</li>
-      </ul>
-
       <h2>What does work</h2>
       <p>
         The parts that exist are tested and behave predictably: signals,
