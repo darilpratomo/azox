@@ -168,3 +168,32 @@ test('bind: never leaks into the markup as a literal attribute', () => {
   const html = renderToHtml(parseAzox('<input bind:value={name} />'), { name: sig('x') });
   assert.doesNotMatch(html, /bind:/);
 });
+
+/* ---------- fragments inside a keyed list ---------- */
+
+// Regression, found in the published 1.0.0: a multi-root component
+// returns a DocumentFragment, which empties when inserted and has no
+// .remove(). A keyed row recorded the fragment itself, so removing the
+// row threw "_node.remove is not a function" — the row stayed on screen
+// and its onCleanup never ran.
+test('a keyed row records its nodes, not the fragment holding them', () => {
+  const code = compile(`<script>
+  import { signal } from 'azox/reactivity';
+  const xs = signal([]);
+</script>
+<dl><each item={xs()} as="x" key={x.id}><dt>{x.k}</dt><dd>{x.v}</dd></each></dl>`);
+
+  assert.match(code, /instanceof DocumentFragment/, 'a fragment root must be expanded');
+  assert.match(code, /childNodes/);
+});
+
+test('a single-element row still records the element itself', () => {
+  const code = compile(`<script>
+  import { signal } from 'azox/reactivity';
+  const xs = signal([]);
+</script>
+<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>`);
+
+  // The guard is cheap and uniform; what matters is that it is there.
+  assert.match(code, /_nodes = \[_el\d+\]\.flatMap/);
+});

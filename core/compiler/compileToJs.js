@@ -555,7 +555,14 @@ function emitKeyedEach(node, statements) {
   // bindings dead and its onCleanup callbacks fired.
   statements.push(`  const _scope = untracked(() => effect(() => {`);
   for (const line of bodyLines) statements.push(`    ${line}`);
-  statements.push(`    _nodes = [${roots.filter((r) => r !== 'null').join(', ')}];`);
+  // A root may be a DocumentFragment — a component with several roots
+  // returns one. A fragment empties when it is inserted and has no
+  // .remove(), so its children are recorded instead; otherwise removing
+  // the row threw and left it on screen with its cleanups unrun.
+  statements.push(
+    `    _nodes = [${roots.filter((r) => r !== 'null').join(', ')}]` +
+      `.flatMap((_n) => (_n instanceof DocumentFragment ? [..._n.childNodes] : [_n]));`
+  );
   statements.push(`  }));`);
   statements.push(`  return { nodes: _nodes, scope: _scope };`);
   statements.push(`};`);

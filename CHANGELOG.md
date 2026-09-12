@@ -3,6 +3,17 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
+## 1.0.1 — 2026-09-12
+
+### Fixed
+
+- **A multi-root component inside a keyed list could not be removed.**
+  Such a component returns a `DocumentFragment`, which empties when it
+  is inserted and has no `.remove()`, so a departing row threw
+  `_node.remove is not a function`: the row stayed on screen and its
+  `onCleanup` never ran. Rows now record the nodes a fragment held.
+  Introduced with multi-root components in 1.0.0.
+
 ## 1.0.0 — 2026-09-12
 
 The API is now stable. Everything below is what 1.0 commits to: the

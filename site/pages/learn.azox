@@ -278,10 +278,10 @@ h1 { font-size: 2.2rem; margin: 0 0 0.3rem; }
 
           <CodeBlock label="terminal"><text>npx azox doctor</text></CodeBlock>
 
-          <CodeBlock label="output"><text>Azox Framework v1.0.0 - The Sound of Future Web
+          <CodeBlock label="output"><text>Azox Framework v1.0.1 - The Sound of Future Web
 
   ✓ Node 22.11.0
-  ✓ Azox v1.0.0
+  ✓ Azox v1.0.1
   ✓ pages/ (2 pages)
   ✓ /  (pages/index.azox)
   ✓ /about  (pages/about.azox)
