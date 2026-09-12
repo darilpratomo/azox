@@ -1,14 +1,18 @@
 <script>
-  // `current` marks the active link. Components take props and render
-  // markup, so the page decides which entry is current.
-  const { version, current } = props();
+  // The version is read from the framework's own package.json, so it
+  // can never drift from what npm publishes — it used to be passed in
+  // as a prop by all sixteen pages, each with the number written out.
+  import pkg from '../../package.json' with { type: 'json' };
+
+  // `current` marks the active link, and is still the page's business.
+  const { current } = props();
 </script>
 
 <nav class="nav">
   <div class="container nav-inner">
     <a class="brand" href="/">
       <span class="brand-mark">Azox</span>
-      <span class="brand-version">v{version}</span>
+      <span class="brand-version">v{pkg.version}</span>
     </a>
     <div class="nav-links">
       <a href="/docs" class={current === 'docs' ? 'is-active' : ''}>Docs</a>

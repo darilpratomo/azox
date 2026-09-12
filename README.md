@@ -205,6 +205,32 @@ clicked.
 Anything the router cannot handle — an external origin, a download,
 a modifier-click — falls through to the browser untouched.
 
+## Importing data
+
+A `<script>` block may import a `.json` file, which is how a page
+reads a constant it should not have written out by hand:
+
+```html
+<script>
+  import pkg from '../package.json' with { type: 'json' };
+</script>
+
+<span>v{pkg.version}</span>
+```
+
+The file is read once during the build. Server rendering evaluates
+against it, and the value is compiled into the module as a constant
+rather than imported — the file sits outside the build directory and
+is never deployed, so an import would 404 in the browser.
+
+Only the properties the markup reads are included, so importing
+`package.json` for a version does not ship the rest of the file to
+every visitor.
+
+Importing a `.js` module is not supported: it would mean executing
+project code during the build. Use a `.json` file for data, and
+`azox/reactivity` for signals.
+
 ## Getting Started
 
 The package on npm is `azoxjs`; the CLI it installs is `azox`.

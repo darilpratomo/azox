@@ -25,6 +25,12 @@ between minor versions; each such change is listed here.
   position, the back button and `<a target>` behave as with a full
   load; external origins, downloads and modifier-clicks fall through
   to the browser.
+- **JSON imports in a `<script>` block.** `import pkg from
+  '../package.json' with { type: 'json' }` reads a constant at build
+  time; the value is inlined into the module rather than imported, and
+  narrowed to the properties the markup reads so the rest of the file
+  is not published. Importing a `.js` module is reported as
+  unsupported rather than failing in the renderer.
 - **Page `<head>` blocks** and `<text>` for literal content.
 - **Static assets** from `public/`, copied into the build.
 - **A browser-capable compiler.** The compiler no longer touches Node
@@ -56,6 +62,15 @@ between minor versions; each such change is listed here.
 - Control flow inside a component did not update.
 - A nested page imported the runtime from its own directory, where no
   runtime exists, so every page below the top level 404'd on it.
+- An import hoisted out of a component was rebased against the page's
+  directory rather than the component's, so a component importing a
+  file next to itself pointed at nothing.
+- A component whose `<script>` held only an import had that import
+  dropped, because a component with no other logic is inlined outright
+  — leaving the name its markup referenced undefined.
+- The runtime specifier was rewritten by matching the bare string
+  `azox` anywhere in the emitted module, so data that merely contained
+  it was corrupted. It is now anchored to an import statement.
 
 ### Changed
 

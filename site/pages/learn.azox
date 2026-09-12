@@ -13,7 +13,7 @@
 </script>
 
 <div class="shell">
-  <Nav version="0.2.0" current="learn" />
+  <Nav current="learn" />
 
   <div class="container" style="padding-block: 3rem 1rem">
     <div class="narrow">

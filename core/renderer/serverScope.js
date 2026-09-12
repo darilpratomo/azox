@@ -57,15 +57,27 @@ export function declaredNames(script) {
 
 // Evaluates a script body and returns its declarations. `params` and
 // `args` pass a component's props in as arguments.
-export function evaluateScript(body, params = [], args = []) {
-  const names = declaredNames(body);
+//
+// `modules` carries what the script's imports brought in, as local
+// name → value. The body runs inside a `new Function`, which cannot
+// use `import`, so the bindings arrive as arguments instead — the
+// build resolves them, since loading a module needs the filesystem
+// and this file has to stay usable in a browser.
+export function evaluateScript(body, params = [], args = [], modules = {}) {
+  const imported = Object.keys(modules);
+  const names = declaredNames(body).filter((name) => !imported.includes(name));
 
   const fn = new Function(
     'signal',
     'computed',
+    ...imported,
     ...params,
     `${body}\nreturn { ${names.join(', ')} };`
   );
 
-  return fn(serverSignal, serverComputed, ...args);
+  const declared = fn(serverSignal, serverComputed, ...imported.map((n) => modules[n]), ...args);
+
+  // An imported binding is in scope for the markup too, the same way
+  // it is in the compiled module.
+  return { ...modules, ...declared };
 }

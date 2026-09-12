@@ -16,7 +16,7 @@
 </script>
 
 <div class="shell">
-  <Nav version="0.2.0" />
+  <Nav />
 
   <header class="hero">
     <div class="container">

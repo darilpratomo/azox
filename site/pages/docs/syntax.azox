@@ -13,7 +13,7 @@
 </script>
 
 <div class="shell">
-  <Nav version="0.2.0" current="docs" />
+  <Nav current="docs" />
 
   <div class="container docs">
     <DocsNav current="/docs/syntax" />
@@ -162,6 +162,45 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <h2>Importing data</h2>
+      <p>
+        A <code>&lt;script&gt;</code> block can import a
+        <code>.json</code> file, for a constant you would rather not
+        write out by hand in several places.
+      </p>
+
+      <CodeBlock label="reading a version"><text><script>
+  import pkg from '../package.json' with { type: 'json' };
+</script>
+
+<span>v{pkg.version}</span></text></CodeBlock>
+
+      <p>
+        The file is read once during the build. Server rendering
+        evaluates against it, and the value is compiled into the page's
+        module as a constant rather than imported — the file sits
+        outside the build directory and is never deployed, so an import
+        would fail in the browser.
+      </p>
+
+      <div class="note">
+        <p>
+          Only the properties your markup reads are included. Importing
+          <code>package.json</code> for a version does not ship the rest
+          of the file to every visitor.
+        </p>
+      </div>
+
+      <div class="note note-warn">
+        <p>
+          <strong>Importing a <code>.js</code> module is not
+          supported.</strong> It would mean running your project's code
+          during the build. Use a <code>.json</code> file for data, and
+          <code>azox/reactivity</code> for signals — anything else is
+          reported as an error rather than failing silently.
+        </p>
       </div>
 
       <h2>Next</h2>

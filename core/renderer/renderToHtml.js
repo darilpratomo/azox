@@ -9,22 +9,27 @@ import { BuildError } from '../buildError.js';
 import { VOID_TAGS, escapeHtml } from '../compiler/html.js';
 import { evaluateScript } from './serverScope.js';
 
-export function renderToHtml(ast, scope) {
-  return renderNode(ast.markup, scope, scope);
+// `modules` is what the page's and its components' imports brought in,
+// as local name → value. A component's script is evaluated here too,
+// and its imports were hoisted to the page, so the bindings have to be
+// handed down rather than re-resolved — this file has no filesystem
+// access by design.
+export function renderToHtml(ast, scope, modules = {}) {
+  return renderNode(ast.markup, scope, scope, modules);
 }
 
 // `outer` is the scope the surrounding markup was written in. It is
 // almost always the same as `scope`; they differ inside a component,
 // where slot content belongs to whoever wrote the tag rather than to
 // the component rendering it.
-function renderNode(node, scope, outer) {
+function renderNode(node, scope, outer, modules = {}) {
   if (!node) return '';
 
   // A fragment contributes only its children. Slot content is the one
   // place the two scopes come apart.
   if (node.type === 'fragment') {
     const childScope = node.slot ? outer : scope;
-    return node.children.map((child) => renderNode(child, childScope, outer)).join('');
+    return node.children.map((child) => renderNode(child, childScope, outer, modules)).join('');
   }
 
   if (node.type === 'text') {
@@ -33,9 +38,9 @@ function renderNode(node, scope, outer) {
 
   // Control flow is evaluated once here, so the page arrives with its
   // list already rendered rather than filling in when scripts run.
-  if (node.type === 'each') return renderEach(node, scope, outer);
-  if (node.type === 'if') return renderIf(node, scope, outer);
-  if (node.type === 'scope') return renderScope(node, scope);
+  if (node.type === 'each') return renderEach(node, scope, outer, modules);
+  if (node.type === 'if') return renderIf(node, scope, outer, modules);
+  if (node.type === 'scope') return renderScope(node, scope, modules);
 
   const attrs = Object.entries(node.attrs)
     .filter(([key]) => !key.startsWith('on:'))
@@ -47,7 +52,7 @@ function renderNode(node, scope, outer) {
 
   if (VOID_TAGS.has(node.name)) return `<${node.name}${attrs}>`;
 
-  const inner = node.children.map((child) => renderNode(child, scope, outer)).join('');
+  const inner = node.children.map((child) => renderNode(child, scope, outer, modules)).join('');
   return `<${node.name}${attrs}>${inner}</${node.name}>`;
 }
 
@@ -55,12 +60,14 @@ function renderNode(node, scope, outer) {
 // prop values bound as arguments, so the server sees the same initial
 // state the browser will build. Its declarations are added to a copy
 // of the scope, so they cannot leak into the surrounding page.
-function renderScope(node, scope) {
+function renderScope(node, scope, modules = {}) {
   const args = node.args.map((expr) => evalExpr(expr, scope));
 
   let declared;
   try {
-    declared = evaluateScript(node.script, node.params, args);
+    // A component's own imports were hoisted to the page and loaded
+    // there, so they are passed in rather than resolved again.
+    declared = evaluateScript(node.script, node.params, args, modules);
   } catch (error) {
     throw new BuildError(`in <${node.name}>: ${error.message}`);
   }
@@ -70,12 +77,12 @@ function renderScope(node, scope) {
 
   // `scope` is passed on as the outer one: slot content nested in
   // this component was written by whoever used the tag.
-  return node.children.map((child) => renderNode(child, inner, scope)).join('');
+  return node.children.map((child) => renderNode(child, inner, scope, modules)).join('');
 }
 
 // Each iteration renders with the loop variable added to the scope,
 // so the body sees it the same way the compiled version does.
-function renderEach(node, scope, outer) {
+function renderEach(node, scope, outer, modules = {}) {
   const items = evalExpr(node.expr, scope);
   if (items === null || items === undefined) return '';
 
@@ -92,16 +99,16 @@ function renderEach(node, scope, outer) {
     const inner = { ...scope, [node.alias]: item };
     if (node.index) inner[node.index] = index;
 
-    html += node.children.map((child) => renderNode(child, inner, outer)).join('');
+    html += node.children.map((child) => renderNode(child, inner, outer, modules)).join('');
     index++;
   }
 
   return html;
 }
 
-function renderIf(node, scope, outer) {
+function renderIf(node, scope, outer, modules = {}) {
   const branch = evalExpr(node.expr, scope) ? node.then : node.otherwise;
-  return branch.map((child) => renderNode(child, scope, outer)).join('');
+  return branch.map((child) => renderNode(child, scope, outer, modules)).join('');
 }
 
 // Three kinds of text, three rules:

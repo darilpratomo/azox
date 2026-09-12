@@ -13,11 +13,13 @@ import {
   rmSync,
 } from 'node:fs';
 import { resolve, basename, relative, dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 
 import { parseAzox } from './compiler/parser.js';
 import { resolveComponents } from './compiler/resolveComponents.js';
 import { compileToModule } from './compiler/compileToJs.js';
 import { renderToHtml } from './renderer/renderToHtml.js';
+import { parseImports } from './renderer/moduleBindings.js';
 import { evaluateScript } from './renderer/serverScope.js';
 import { escapeHtml } from './compiler/html.js';
 import { collectRoutes, findRoute } from './routes.js';
@@ -58,10 +60,15 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
   // the compiler and the renderer both see plain markup.
   const ast = resolveComponents(parsed, sourcePath, createNodeResolver());
 
+  // Imports the script pulls in are loaded once: server rendering
+  // evaluates against them, and the client module inlines them rather
+  // than importing a path that is never deployed.
+  const inlineModules = loadModules(ast.script, sourcePath, ast.componentImports ?? []);
+
   // SSR pass: render initial markup without touching browser DOM APIs.
   let html;
   try {
-    html = renderToHtml(ast, buildServerScope(ast.script));
+    html = renderToHtml(ast, buildServerScope(ast.script, inlineModules), inlineModules);
   } catch (error) {
     if (!(error instanceof BuildError)) throw error;
     throw new BuildError(`in ${PAGES_DIR}/${name}.azox: ${error.message}`);
@@ -85,7 +92,11 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
       // The user's own relative imports were written next to the
       // page; the compiled module lives in .azox/build/, so they need
       // re-expressing from there.
-      rewriteImports: (script) => rebaseImports(script, dirname(sourcePath), clientPath),
+      // An import hoisted out of a component is relative to that
+      // component's file, which is why the hook takes a path.
+      rewriteImports: (script, from = sourcePath) =>
+        rebaseImports(script, dirname(from), clientPath),
+      inlineModules,
     }),
     runtimeSpecifier
   );
@@ -217,8 +228,16 @@ export function buildPage(projectDir, pageName, options) {
 
 // Rewrites the bare specifier a page's own <script> uses to the same
 // path the compiler emitted for the runtime import.
+//
+// Anchored to an import statement on its own line. Matching the bare
+// string anywhere would rewrite data that merely contains it — a JSON
+// import inlined into the module turned `"bin": {"azox": …}` into a
+// path to the runtime.
 function rewriteRuntimeImports(code, runtimeSpecifier) {
-  return code.replace(/(['"])azox(?:\/reactivity)?\1/g, `'${runtimeSpecifier}'`);
+  return code.replace(
+    /^([ \t]*import\s[\s\S]*?from\s+)(['"])azox(?:js)?(?:\/reactivity)?\2/gm,
+    `$1'${runtimeSpecifier}'`
+  );
 }
 
 // Re-expresses the relative imports in a page's <script> so they
@@ -281,16 +300,68 @@ function projectTitle(projectDir) {
 // evaluate the expressions the template references. The script is
 // trusted project source, not user input — the same assumption any
 // template engine's SSR step makes.
-function buildServerScope(script) {
+function buildServerScope(script, modules = {}) {
   // Strip imports: the server supplies its own primitives rather than
-  // loading the real reactive runtime.
+  // loading the real reactive runtime, and anything else a script
+  // imports was resolved by loadModules and is passed in.
   const body = script.replace(/^\s*import\s.+?;?\s*$/gm, '');
 
   try {
-    return evaluateScript(body);
+    return evaluateScript(body, [], [], modules);
   } catch (error) {
+    if (error instanceof BuildError) throw error;
     throw new BuildError(`failed to evaluate the page's <script> block: ${error.message}`);
   }
+}
+
+// Resolves what a script's imports bring in, so server rendering sees
+// the same values the browser will.
+//
+// Only JSON is loaded. A JSON import is synchronous and has no side
+// effects, which suits a build step that must stay synchronous — and
+// it covers the case this exists for: reading a version or some other
+// constant out of package.json. Importing a .js module would mean
+// executing project code during the build, and `require(esm)` only
+// works from Node 22.12, below the floor this package declares.
+function loadModules(script, sourcePath, componentImports = []) {
+  // A component's hoisted import is relative to the component's own
+  // file, so each is resolved against the path it came with.
+  const imports = [
+    ...parseImports(script).map((entry) => ({ ...entry, from: sourcePath })),
+    ...componentImports.flatMap((entry) =>
+      parseImports(entry.statement).map((parsed) => ({ ...parsed, from: entry.path }))
+    ),
+  ];
+
+  if (!imports.length) return {};
+
+  const bindings = {};
+
+  for (const { specifier, bindings: names, from } of imports) {
+    if (!specifier.endsWith('.json')) {
+      throw new BuildError(
+        `cannot import '${specifier}': a <script> block may import .azox components, ` +
+          `'azox/reactivity', and .json files. Other modules are not available during ` +
+          `server rendering.`
+      );
+    }
+
+    const require = createRequire(from ? `file://${from}` : import.meta.url);
+
+    let loaded;
+    try {
+      loaded = require(specifier);
+    } catch (error) {
+      throw new BuildError(`cannot import '${specifier}': ${error.message.split('\n')[0]}`);
+    }
+
+    for (const { local, imported } of names) {
+      if (imported === '*' || imported === 'default') bindings[local] = loaded;
+      else bindings[local] = loaded[imported];
+    }
+  }
+
+  return bindings;
 }
 
 // The client module sits next to the page's index.html, so the src is

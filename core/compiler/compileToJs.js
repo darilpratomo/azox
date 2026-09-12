@@ -15,9 +15,15 @@ const nextId = () => `_el${uid++}`;
 //   whatever the playground wants to point at.
 // rewriteImports: optional hook the build uses to rebase the user's
 //   own relative imports, since compiled output lives in
-//   .azox/build/ rather than next to the page. The playground has no
-//   output directory, so it omits this.
-export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
+//   .azox/build/ rather than next to the page. Called as
+//   (script, sourcePath) — an import hoisted out of a component is
+//   relative to that component, not to the page. The playground has
+//   no output directory, so it omits this.
+// inlineModules: values the build already loaded, as local name →
+//   value, whose import must not reach the browser. A JSON import
+//   points outside the build directory at a file that is never
+//   deployed, so the value is emitted as a constant instead.
+export function compileToModule(ast, { runtimeSpecifier, rewriteImports, inlineModules }) {
   uid = 0;
   const statements = [];
   const rootVar = emitNode(ast.markup, statements, 'root');
@@ -35,22 +41,38 @@ export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
   );
 
   // Stateful components keep their logic inside a scope function, but
-  // their imports cannot live there, so the resolver hoisted them.
-  // They need the same path rewriting the page's own imports get,
-  // then merging with them: declaring the same binding twice is a
-  // syntax error.
-  let hoisted = ast.componentImports ?? [];
-  if (rewriteImports) hoisted = hoisted.map((line) => rewriteImports(line));
+  // their imports cannot live there, so the resolver hoisted them,
+  // each carrying the file it was written in. They need the same path
+  // rewriting the page's own imports get — but relative to their own
+  // file, not the page's — then merging with them: declaring the same
+  // binding twice is a syntax error.
+  let hoisted = (ast.componentImports ?? [])
+    // An inlined import becomes a constant below, so the statement
+    // must be dropped here too — it would declare the binding twice.
+    .filter((entry) => !isInlined(entry.statement, inlineModules))
+    .map((entry) =>
+      rewriteImports ? rewriteImports(entry.statement, entry.path) : entry.statement
+    );
 
   // A keyed list disposes the effects of rows that leave, so the
   // module needs dispose as well as effect.
   const needsDispose = statements.some((line) => line.includes('dispose('));
 
-  const { imports, body } = mergeImports(script, hoisted, runtimeSpecifier, needsDispose);
+  const { imports, body } = mergeImports(
+    script,
+    hoisted,
+    runtimeSpecifier,
+    needsDispose,
+    inlineModules
+  );
+
+  // Narrowed to what the module actually reads, so importing
+  // package.json for a version does not publish the whole file.
+  const inlined = emitInlineModules(inlineModules, [...statements, body].join('\n'));
 
   return `
 ${imports}
-${body}
+${inlined}${body}
 
 export function render(mount) {
 ${statements.map((line) => '  ' + line).join('\n')}
@@ -67,8 +89,18 @@ ${isStatic ? staticNote() : hydrateBlock()}`.trimStart();
 // Named imports from the same specifier are merged into one
 // statement, so `signal` imported by both the page and a component is
 // declared once rather than twice — which would be a syntax error.
-function mergeImports(script, componentImports, runtimeSpecifier, needsDispose = false) {
-  const pageImports = [...script.matchAll(/^\s*(import\s[^;\n]+;?)\s*$/gm)].map((m) => m[1].trim());
+function mergeImports(
+  script,
+  componentImports,
+  runtimeSpecifier,
+  needsDispose = false,
+  inlineModules = null
+) {
+  const pageImports = [...script.matchAll(/^\s*(import\s[^;\n]+;?)\s*$/gm)]
+    .map((m) => m[1].trim())
+    // An inlined import becomes a constant below, so its statement
+    // must not also be emitted — the binding would be declared twice.
+    .filter((line) => !isInlined(line, inlineModules));
   const body = script.replace(/^\s*import\s[^;\n]+;?\s*$/gm, '').trim();
 
   // specifier -> set of named bindings; anything not a plain named
@@ -105,6 +137,97 @@ function mergeImports(script, componentImports, runtimeSpecifier, needsDispose =
   ];
 
   return { imports: lines.join('\n'), body };
+}
+
+// An import is inlined when every binding it declares was loaded by
+// the build. Matching on the specifier would be wrong: the same file
+// could be imported for some other reason.
+function isInlined(statement, inlineModules) {
+  if (!inlineModules) return false;
+
+  const match = statement.match(/^import\s+([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/);
+  if (!match) return false;
+
+  const locals = localNames(match[1]);
+  return locals.length > 0 && locals.every((name) => name in inlineModules);
+}
+
+// The local names an import clause declares, for deciding whether the
+// statement has been replaced by constants.
+function localNames(clause) {
+  const text = clause.trim();
+  const names = [];
+
+  const namespace = text.match(/^\*\s+as\s+([A-Za-z_$][\w$]*)$/);
+  if (namespace) return [namespace[1]];
+
+  const braceAt = text.indexOf('{');
+  const head = (braceAt === -1 ? text : text.slice(0, braceAt)).replace(/,\s*$/, '').trim();
+  if (/^[A-Za-z_$][\w$]*$/.test(head)) names.push(head);
+
+  if (braceAt !== -1) {
+    const closeAt = text.lastIndexOf('}');
+    for (const part of text.slice(braceAt + 1, closeAt === -1 ? undefined : closeAt).split(',')) {
+      const entry = part.trim();
+      if (!entry) continue;
+      const aliased = entry.match(/^(.+?)\s+as\s+([A-Za-z_$][\w$]*)$/);
+      const local = (aliased ? aliased[2] : entry).trim();
+      if (/^[A-Za-z_$][\w$]*$/.test(local)) names.push(local);
+    }
+  }
+
+  return names;
+}
+
+// Emits a loaded value as a constant. JSON.stringify is exact for what
+// JSON can hold, which is all this path accepts.
+function emitInlineModules(inlineModules, usage = '') {
+  if (!inlineModules) return '';
+
+  const entries = Object.entries(inlineModules);
+  if (!entries.length) return '';
+
+  const lines = entries.map(
+    ([name, value]) => `const ${name} = ${JSON.stringify(narrow(name, value, usage))};`
+  );
+  return `${lines.join('\n')}\n`;
+}
+
+// Keeps only the properties the module reads by name. A page that
+// imports package.json for its version has no business shipping the
+// author's address to every visitor, and the unread half is dead
+// weight in the bundle.
+//
+// Narrowing applies to a plain object read as `name.prop`. Anything
+// else — a primitive, an array, or a value the code indexes
+// dynamically — is kept whole, since what is needed cannot be known
+// from the source alone.
+function narrow(name, value, usage) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // A dynamic read — name[expr] — could reach any property, and
+  // passing the object on (or spreading it) could read any of them
+  // later. Both mean the whole value has to stay.
+  if (new RegExp(`\\b${escaped}\\s*\\[`).test(usage)) return value;
+  if (new RegExp(`\\.\\.\\.\\s*${escaped}\\b`).test(usage)) return value;
+
+  const read = new Set();
+  for (const match of usage.matchAll(new RegExp(`\\b${escaped}\\.([A-Za-z_$][\\w$]*)`, 'g'))) {
+    read.add(match[1]);
+  }
+
+  // No property read by name at all: the object itself is being used,
+  // so it is kept as it is.
+  if (!read.size) return value;
+
+  const narrowed = {};
+  for (const key of read) {
+    if (key in value) narrowed[key] = value[key];
+  }
+
+  return narrowed;
 }
 
 function staticNote() {

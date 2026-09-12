@@ -23,10 +23,20 @@ export class ComponentError extends BuildError {}
 export function resolveComponents(ast, sourcePath, resolver, seen = new Set()) {
   // Imports from stateful components are hoisted here: they cannot
   // live inside the scope function the compiler builds for each one.
-  const hoisted = new Set();
+  //
+  // Each entry carries the file it was written in. A relative
+  // specifier means something different depending on where it was
+  // written, so the owning path has to travel with the statement —
+  // rebasing a component's import against the page's directory points
+  // it at a file that is not there.
+  const hoisted = new Map();
   const markup = expand(ast.markup, ast, sourcePath, resolver, seen, hoisted);
 
-  return { ...ast, markup, componentImports: [...hoisted] };
+  return {
+    ...ast,
+    markup,
+    componentImports: [...hoisted.values()],
+  };
 }
 
 function expand(node, ast, sourcePath, resolver, seen, hoisted) {
@@ -68,17 +78,25 @@ function expand(node, ast, sourcePath, resolver, seen, hoisted) {
   const values = propValues(node, component.ast.props);
   const { logic, imports } = componentLogic(component.ast.script);
 
+  // Imports are hoisted whether or not the component has logic: a
+  // component whose script is only an import still has markup that
+  // references what it imported, and dropping the import left that
+  // name undefined.
+  for (const line of imports) {
+    hoisted.set(`${component.path}\u0000${line}`, { statement: line, path: component.path });
+  }
+
+  // Imports the component's own body pulled up are needed by anything
+  // nested inside it too, and keep the path they were written against.
+  for (const entry of inner.componentImports ?? []) {
+    hoisted.set(`${entry.path}\u0000${entry.statement}`, entry);
+  }
+
   // Without logic the component is inlined outright, and its props are
   // rewritten to the caller's expressions in place.
   if (!logic) {
     return substituteProps(inner.markup, values, children);
   }
-
-  for (const line of imports) hoisted.add(line);
-
-  // Imports the component's own body pulled up are needed by anything
-  // nested inside it too.
-  for (const line of inner.componentImports ?? []) hoisted.add(line);
 
   // With logic the markup gets a scope of its own, so each use has its
   // own copy of whatever the component declares — two <Counter /> tags
