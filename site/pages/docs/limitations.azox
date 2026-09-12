@@ -58,10 +58,15 @@
         <code>[slug].azox</code>, and no way to generate pages from data.
       </p>
 
-      <h2>No client-side routing</h2>
+      <h2>State does not survive navigation</h2>
       <p>
-        Links are ordinary page loads. There is no client router, no prefetching
-        and no view transitions. Each page does arrive as server-rendered HTML.
+        <a href="/docs/router">Client-side routing</a> exists, but each page
+        starts fresh: navigating runs the new page's module from scratch, so
+        its signals begin at their initial values. Nothing is carried across.
+      </p>
+      <p>
+        There are also no view transitions — the swap is immediate rather than
+        animated.
       </p>
 
       <h2>Hydration replaces the markup</h2>
@@ -106,8 +111,9 @@
       <h2>What does work</h2>
       <p>
         The parts that exist are tested and behave predictably: signals,
-        effects and computed values; components with props and slots; slots
-        containing further components; file-based routing at any depth; server
+        effects and computed values; components with props, slots and state of
+        their own; loops and conditionals, nested to any depth; file-based
+        routing; optional client-side navigation with prefetching; server
         rendering with escaping; the dev server with live reload; and a build
         that runs on any static host.
       </p>

@@ -208,8 +208,8 @@ pages/index.azox        →  one flat sequence of DOM calls
               <td>Azox is at v0.1.0. There are no plugins, no component libraries, no Stack Overflow answers</td>
             </tr>
             <tr>
-              <td>Client-side routing</td>
-              <td>Links are ordinary page loads in this version</td>
+              <td>State that outlives a page</td>
+              <td>Navigation starts each page fresh; nothing is carried across</td>
             </tr>
             <tr>
               <td>Battle-tested edge cases</td>
