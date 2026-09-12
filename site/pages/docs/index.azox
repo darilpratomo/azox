@@ -13,7 +13,7 @@
 </script>
 
 <div class="shell">
-  <Nav version="0.1.0" current="docs" />
+  <Nav version="0.2.0" current="docs" />
 
   <div class="container docs">
     <DocsNav current="/docs" />
@@ -27,7 +27,7 @@
 
       <div class="note">
         <p>
-          <strong>Early development.</strong> Azox is at v0.1.0. It works end
+          <strong>Early development.</strong> Azox is at v0.2.0. It works end
           to end, but the API can still change. See
           <a href="/docs/limitations">limitations</a> for what it does not do yet.
         </p>

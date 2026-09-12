@@ -13,7 +13,7 @@
 </script>
 
 <div class="shell">
-  <Nav version="0.1.0" current="why" />
+  <Nav version="0.2.0" current="why" />
 
   <div class="container" style="padding-block: 3rem 1rem">
     <div class="narrow">
@@ -205,7 +205,7 @@ pages/index.azox        →  one flat sequence of DOM calls
             </tr>
             <tr>
               <td>A large ecosystem</td>
-              <td>Azox is at v0.1.0. There are no plugins, no component libraries, no Stack Overflow answers</td>
+              <td>Azox is at v0.2.0. There are no plugins, no component libraries, no Stack Overflow answers</td>
             </tr>
             <tr>
               <td>State that outlives a page</td>

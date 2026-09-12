@@ -11,7 +11,7 @@ third-party CLI dependencies, no borrowed syntax from React, Vue, or
 Next.js. It compiles `.azox` components directly into fine-grained,
 signal-driven DOM updates.
 
-> Status: early development (v0.1.0). APIs are unstable and will
+> Status: early development (v0.2.0). APIs are unstable and will
 > change without notice until v1.0.
 
 ## Why Azox
@@ -122,10 +122,88 @@ Declaring props with `props()` is what lets the compiler reject a
 caller that passes something the component never asked for, instead
 of dropping it silently.
 
-In this version components are presentational: they take props and
-render markup, and state lives in the page that uses them. A
-component that declares its own logic is rejected with an explicit
-error rather than quietly sharing the caller's scope.
+A component may hold its own state. Its `<script>` becomes a scope
+of its own, so two uses of the same component are independent — each
+`<Counter />` below counts separately:
+
+```html
+<!-- components/Counter.azox -->
+<script>
+  import { signal } from 'azox/reactivity';
+  const count = signal(0);
+</script>
+
+<button on:click={() => count.set(count() + 1)}>{count()}</button>
+```
+
+```html
+<main>
+  <Counter />
+  <Counter />
+</main>
+```
+
+There is still no component instance at runtime: the compiler wraps
+each use in its own JavaScript scope, which is ordinary scoping
+rather than a framework construct.
+
+## Loops and conditionals
+
+Control flow is expressed as tags, so it nests inside markup like
+anything else.
+
+```html
+<ul>
+  <each item={todos()} as="todo" index="i">
+    <li>{i + 1}. {todo}</li>
+  </each>
+</ul>
+
+<if cond={user()}>
+  <p>Signed in as {user().name}</p>
+<else />
+  <a href="/login">Sign in</a>
+</if>
+```
+
+Each block marks its place with a pair of comment nodes, and an
+update replaces only the nodes between them.
+
+By default a change to a list rebuilds its rows. Give a row an
+identity with `key` and it survives instead: reordering moves it,
+removing one leaves the rest untouched, and adding one does not
+disturb what is already there.
+
+```html
+<each item={tasks()} as="task" key={task.id}>
+  <li><TaskRow title={task.title} /></li>
+</each>
+```
+
+Use something stable and unique to the row — a database id, not its
+position, since a position changes when the list does.
+
+## Client-side routing
+
+By default every link is a full page load, which is the right
+behaviour for a static site. Opt in to client-side navigation with
+`router: true` in your project's `package.json`:
+
+```json
+{
+  "router": true
+}
+```
+
+Internal links are then swapped in place: the new page's HTML is
+fetched, the document body and `<head>` are replaced, and its module
+runs. Scroll position, the back button, and `<a target>` all behave
+as they would with a full load. A link is prefetched when the pointer
+enters it, so the page is usually already in hand by the time it is
+clicked.
+
+Anything the router cannot handle — an external origin, a download,
+a modifier-click — falls through to the browser untouched.
 
 ## Getting Started
 
@@ -181,6 +259,7 @@ azox/
 │   ├── dev/                  dev server, file watching, live reload
 │   ├── reactivity/           signal() / effect() / computed()
 │   ├── renderer/             server-side HTML rendering
+│   ├── router/               opt-in client-side navigation
 │   ├── build.js              the build pipeline, shared by commands
 │   ├── routes.js             file layout → urls and output paths
 │   └── meta.js               version and identity strings

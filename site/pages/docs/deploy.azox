@@ -13,7 +13,7 @@
 </script>
 
 <div class="shell">
-  <Nav version="0.1.0" current="docs" />
+  <Nav version="0.2.0" current="docs" />
 
   <div class="container docs">
     <DocsNav current="/docs/deploy" />
