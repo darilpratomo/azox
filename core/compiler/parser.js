@@ -367,7 +367,25 @@ function buildEach(attrs, children) {
       ? indexAttr.value
       : null;
 
-  return { type: 'each', expr: list.expr, alias: alias.value, index, children };
+  // An optional key gives each row an identity, so a change to the
+  // list can move and keep rows rather than rebuilding all of them.
+  // It is an expression evaluated per row, so it can read the alias.
+  const keyAttr = attrs.key;
+
+  if (keyAttr && keyAttr.kind !== 'expr') {
+    throw new ParseError(
+      'Azox parse error: <each> needs key={...} as an expression — for example key={item.id}'
+    );
+  }
+
+  return {
+    type: 'each',
+    expr: list.expr,
+    alias: alias.value,
+    index,
+    key: keyAttr ? keyAttr.expr : null,
+    children,
+  };
 }
 
 // <if cond={...}> … <else /> … </if> — the marker splits the children

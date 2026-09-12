@@ -89,9 +89,11 @@ function starterPage(name) {
   import { signal } from 'azox/reactivity';
 
   const tasks = signal([
-    { title: 'Edit this page', done: true },
-    { title: 'Add a page of your own', done: false },
+    { id: 1, title: 'Edit this page', done: true },
+    { id: 2, title: 'Add a page of your own', done: false },
   ]);
+  const draft = signal('');
+  let nextId = 3;
 </script>
 
 <main class="page">
@@ -102,10 +104,10 @@ function starterPage(name) {
   <Counter label="Left" />
   <Counter label="Right" />
 
-  <!-- A list, rendered from data. Note that changing the list
-       rebuilds it, so keep state that must survive outside. -->
+  <!-- key={task.id} gives each row an identity, so adding to the
+       list leaves the rows already there untouched. -->
   <ul>
-    <each item={tasks()} as="task" index="i">
+    <each item={tasks()} as="task" index="i" key={task.id}>
       <li>
         <if cond={task.done}>
           <s>{i + 1}. {task.title}</s>
@@ -115,6 +117,17 @@ function starterPage(name) {
       </li>
     </each>
   </ul>
+
+  <input
+    value={draft()}
+    on:input={(e) => draft.set(e.target.value)}
+    placeholder="Add a task"
+  />
+  <button on:click={() => {
+    if (!draft()) return;
+    tasks.set([...tasks(), { id: nextId++, title: draft(), done: false }]);
+    draft.set('');
+  }}>Add</button>
 
   <p><a href="/about">About</a></p>
 </main>

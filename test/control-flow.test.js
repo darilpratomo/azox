@@ -338,3 +338,62 @@ test('both branches of an <if> compile into one builder', () => {
   assert.match(code, /createElement\("b"\)/);
   assert.match(code, /\(_branch\) => \{/);
 });
+
+/* ---------- keyed lists ---------- */
+
+test('<each> parses an optional key', () => {
+  const { markup } = parseAzox('<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>');
+  assert.equal(markup.children[0].key, 'x.id');
+});
+
+test('a list without a key has none', () => {
+  const { markup } = parseAzox('<ul><each item={xs()} as="x"><li>{x}</li></each></ul>');
+  assert.equal(markup.children[0].key, null);
+});
+
+test('a key that is not an expression is rejected', () => {
+  assert.throws(
+    () => parseAzox('<ul><each item={xs()} as="x" key="id"><li>{x}</li></each></ul>'),
+    /key=\{\.\.\.\} as an expression/
+  );
+});
+
+test('a keyed list renders the same HTML as an unkeyed one', () => {
+  const scope = { xs: sig([{ id: 1, n: 'a' }, { id: 2, n: 'b' }]) };
+
+  assert.equal(
+    render('<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>', scope),
+    '<ul><li>a</li><li>b</li></ul>'
+  );
+});
+
+// A keyed list keeps the rows it already built, so it needs somewhere
+// to remember them and a way to release the ones that leave.
+test('a keyed list keeps a map of rows and disposes the ones that go', () => {
+  const code = compile('<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>');
+
+  assert.match(code, /new Map\(\)/, 'rows are remembered between runs');
+  assert.match(code, /dispose\(_row\.scope\)/, 'a departing row releases its effects');
+  assert.match(code, /import \{ effect, dispose \}/, 'dispose is imported');
+});
+
+test('an unkeyed list neither remembers rows nor imports dispose', () => {
+  const code = compile('<ul><each item={xs()} as="x"><li>{x}</li></each></ul>');
+
+  assert.doesNotMatch(code, /new Map\(\)/);
+  assert.doesNotMatch(code, /dispose/);
+});
+
+test('a keyed list rejects a duplicate key at runtime', () => {
+  const code = compile('<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>');
+  assert.match(code, /saw the key .* twice/, 'duplicates must be reported, not dropped');
+});
+
+test('a keyed list can also declare an index', () => {
+  const { markup } = parseAzox(
+    '<ul><each item={xs()} as="x" index="i" key={x.id}><li>{i}</li></each></ul>'
+  );
+
+  assert.equal(markup.children[0].index, 'i');
+  assert.equal(markup.children[0].key, 'x.id');
+});

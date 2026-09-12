@@ -122,12 +122,44 @@
         the page, including other lists, is unaffected by an update here.
       </p>
 
+      <h3>Keeping rows across a change</h3>
+      <p>
+        By default a change to the list rebuilds its contents. That is fine for
+        display, but anything a row was holding — a count, focus, a scroll
+        position — starts again.
+      </p>
+      <p>
+        Give each row an identity with <code>key</code>, and rows survive:
+        reordering moves them, removing one leaves the rest untouched, and
+        adding one does not disturb what is already there.
+      </p>
+
+      <CodeBlock label="a keyed list"><text><each item={tasks()} as="task" key={task.id}>
+  <li>
+    <TaskRow title={task.title} />
+  </li>
+</each></text></CodeBlock>
+
+      <p>
+        The key is an expression evaluated per row, so it can read the loop
+        variable. Use something stable and unique to the row — a database id,
+        not its position, since a position changes when the list does.
+      </p>
+
+      <div class="note">
+        <p>
+          Keys must be unique within a list. A duplicate is reported rather
+          than quietly dropping a row, since the two rows would otherwise be
+          indistinguishable.
+        </p>
+      </div>
+
       <div class="note note-warn">
         <p>
-          <strong>A changed list rebuilds its own contents.</strong> There is
-          no keyed reconciliation in this version, so a list that updates very
-          often, or holds focus or scroll state inside it, will feel that.
-          Bindings outside the list keep their fine-grained behaviour.
+          <strong>Without a key, a list still rebuilds.</strong> That is the
+          right default for a list of plain text, and it costs nothing to
+          leave as it is. Reach for a key when a row holds something worth
+          keeping.
         </p>
       </div>
 
@@ -173,6 +205,11 @@
               <td><code>index="name"</code></td>
               <td><code>&lt;each&gt;</code></td>
               <td>Names the position, starting at 0. Optional.</td>
+            </tr>
+            <tr>
+              <td><code>key={'{'}…{'}'}</code></td>
+              <td><code>&lt;each&gt;</code></td>
+              <td>Gives a row an identity so it survives a change. Optional.</td>
             </tr>
             <tr>
               <td><code>cond={'{'}…{'}'}</code></td>

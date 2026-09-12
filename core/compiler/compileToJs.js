@@ -42,7 +42,11 @@ export function compileToModule(ast, { runtimeSpecifier, rewriteImports }) {
   let hoisted = ast.componentImports ?? [];
   if (rewriteImports) hoisted = hoisted.map((line) => rewriteImports(line));
 
-  const { imports, body } = mergeImports(script, hoisted, runtimeSpecifier);
+  // A keyed list disposes the effects of rows that leave, so the
+  // module needs dispose as well as effect.
+  const needsDispose = statements.some((line) => line.includes('dispose('));
+
+  const { imports, body } = mergeImports(script, hoisted, runtimeSpecifier, needsDispose);
 
   return `
 ${imports}
@@ -63,7 +67,7 @@ ${isStatic ? staticNote() : hydrateBlock()}`.trimStart();
 // Named imports from the same specifier are merged into one
 // statement, so `signal` imported by both the page and a component is
 // declared once rather than twice — which would be a syntax error.
-function mergeImports(script, componentImports, runtimeSpecifier) {
+function mergeImports(script, componentImports, runtimeSpecifier, needsDispose = false) {
   const pageImports = [...script.matchAll(/^\s*(import\s[^;\n]+;?)\s*$/gm)].map((m) => m[1].trim());
   const body = script.replace(/^\s*import\s[^;\n]+;?\s*$/gm, '').trim();
 
@@ -90,6 +94,7 @@ function mergeImports(script, componentImports, runtimeSpecifier) {
 
   // `effect` is always needed: the compiler emits calls to it.
   record(`import { effect } from '${runtimeSpecifier}';`);
+  if (needsDispose) record(`import { dispose } from '${runtimeSpecifier}';`);
   for (const statement of [...componentImports, ...pageImports]) record(statement);
 
   const lines = [
@@ -246,6 +251,97 @@ function emitControlBlock(statements, buildBody, sourceExpr, renderCall) {
 }
 
 function emitEach(node, statements) {
+  return node.key ? emitKeyedEach(node, statements) : emitPlainEach(node, statements);
+}
+
+// A keyed list remembers the rows it built, so an update moves the
+// ones that are still there instead of discarding every row and
+// building it again. That is what lets a row keep its own state, its
+// focus, and its scroll position across a change to the list.
+//
+// Rows that leave have their effects disposed, which is the one place
+// the runtime's dispose() is needed: a row's bindings are created
+// inside their own effect scope rather than inside the block's, since
+// re-running the block must not tear down rows it is keeping.
+function emitKeyedEach(node, statements) {
+  const params = node.index ? `${node.alias}, ${node.index}` : node.alias;
+
+  const start = nextId();
+  const end = nextId();
+  const build = nextId();
+  const rows = nextId();
+  const holder = nextId();
+
+  statements.push(`const ${start} = document.createComment('');`);
+  statements.push(`const ${end} = document.createComment('');`);
+  statements.push(`const ${holder} = document.createDocumentFragment();`);
+  statements.push(`${holder}.append(${start}, ${end});`);
+
+  // key -> { nodes, scope }. Kept across runs; this is the memory that
+  // makes the list keyed rather than rebuilt.
+  statements.push(`const ${rows} = new Map();`);
+
+  // The row builder returns its nodes and the effect owning them, so
+  // the block can both re-insert a row and dispose it later.
+  const bodyLines = [];
+  const roots = node.children.map((child) => emitNode(child, bodyLines, 'root'));
+
+  statements.push(`const ${build} = (${params}) => {`);
+  statements.push(`  let _nodes;`);
+  statements.push(`  const _scope = effect(() => {`);
+  for (const line of bodyLines) statements.push(`    ${line}`);
+  statements.push(`    _nodes = [${roots.filter((r) => r !== 'null').join(', ')}];`);
+  statements.push(`  });`);
+  statements.push(`  return { nodes: _nodes, scope: _scope };`);
+  statements.push(`};`);
+
+  statements.push(`effect(() => {`);
+  statements.push(`  const _source = ${node.expr};`);
+  statements.push(`  const _parent = ${end}.parentNode;`);
+  statements.push(`  if (!_parent) return;`);
+  statements.push(``);
+  statements.push(`  const _seen = new Set();`);
+  statements.push(`  let _i = 0;`);
+  statements.push(``);
+  statements.push(`  for (const _item of _source ?? []) {`);
+  statements.push(`    const ${node.alias} = _item;`);
+  if (node.index) statements.push(`    const ${node.index} = _i;`);
+  statements.push(`    const _key = ${node.key};`);
+  statements.push(``);
+  statements.push(`    if (_seen.has(_key)) {`);
+  statements.push(`      throw new Error(`);
+  statements.push(
+    "        `Azox: <each> saw the key ${String(_key)} twice. Keys must be unique within a list.`"
+  );
+  statements.push(`      );`);
+  statements.push(`    }`);
+  statements.push(`    _seen.add(_key);`);
+  statements.push(``);
+  statements.push(`    let _row = ${rows}.get(_key);`);
+  statements.push(`    if (!_row) {`);
+  statements.push(`      _row = ${build}(_item${node.index ? ', _i' : ''});`);
+  statements.push(`      ${rows}.set(_key, _row);`);
+  statements.push(`    }`);
+  statements.push(``);
+  statements.push(`    // Moving a node that is already in place is a no-op in`);
+  statements.push(`    // the DOM, so ordering costs nothing when nothing moved.`);
+  statements.push(`    for (const _node of _row.nodes) _parent.insertBefore(_node, ${end});`);
+  statements.push(`    _i++;`);
+  statements.push(`  }`);
+  statements.push(``);
+  statements.push(`  // Whatever is left in the map is a row that has gone.`);
+  statements.push(`  for (const [_key, _row] of ${rows}) {`);
+  statements.push(`    if (_seen.has(_key)) continue;`);
+  statements.push(`    for (const _node of _row.nodes) _node.remove();`);
+  statements.push(`    dispose(_row.scope);`);
+  statements.push(`    ${rows}.delete(_key);`);
+  statements.push(`  }`);
+  statements.push(`});`);
+
+  return holder;
+}
+
+function emitPlainEach(node, statements) {
   const params = node.index ? `${node.alias}, ${node.index}` : node.alias;
 
   return emitControlBlock(

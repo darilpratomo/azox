@@ -38,18 +38,17 @@
         attach a listener to <code>window</code> and take it down again later.
       </p>
 
-      <h2>Lists rebuild rather than reconcile</h2>
+      <h2>Lists rebuild unless you key them</h2>
       <p>
-        <a href="/docs/control-flow"><code>&lt;each&gt;</code> and
-        <code>&lt;if&gt;</code></a> exist, but there is no keyed
-        reconciliation: when a list's source changes, the block's contents are
-        rebuilt rather than matched against what was already there.
+        A list without a <a href="/docs/control-flow"><code>key</code></a>
+        rebuilds its contents when the source changes, so anything a row was
+        holding starts again. Adding <code>key={'{'}item.id{'}'}</code> keeps
+        rows across reorders, removals and insertions.
       </p>
       <p>
-        For most lists this is not noticeable. It matters for a list that
-        updates very often, or one holding focus or scroll position inside it,
-        since those are lost on a rebuild. Bindings outside the list keep
-        their fine-grained behaviour.
+        The default is deliberate — a list of plain text gains nothing from
+        being keyed — but it does mean the behaviour differs depending on
+        whether you remembered to add one.
       </p>
 
       <h2>No dynamic routes</h2>
