@@ -227,3 +227,13 @@ test('no two compiler modules declare the same top-level name', () => {
 
   assert.deepEqual(clashes, [], 'these names would collide once concatenated');
 });
+
+// A v1.0 freeze means the entry points agree: `azoxjs` must not quietly
+// omit half of what `azoxjs/reactivity` offers.
+test('the main entry re-exports the whole reactivity surface', async () => {
+  const main = await import('../core/index.js');
+  const reactivity = await import('../core/reactivity/signal.js');
+
+  const missing = Object.keys(reactivity).filter((name) => !(name in main));
+  assert.deepEqual(missing, [], 'these are reachable from azoxjs/reactivity but not azoxjs');
+});

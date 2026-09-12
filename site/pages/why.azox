@@ -202,7 +202,7 @@ pages/index.azox        →  one flat sequence of DOM calls
             </tr>
             <tr>
               <td>A large ecosystem</td>
-              <td>Azox is at v0.4.0. There are no plugins, no component libraries, no Stack Overflow answers</td>
+              <td>The API is stable, but it is new: no plugins, no component libraries, no Stack Overflow answers</td>
             </tr>
             <tr>
               <td>State that outlives a page</td>

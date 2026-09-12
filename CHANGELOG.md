@@ -3,7 +3,27 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
-## Unreleased
+## 1.0.0 — 2026-09-12
+
+The API is now stable. Everything below is what 1.0 commits to: the
+template syntax, the reactivity exports, and the shape of the build
+output will not change without a 2.0.
+
+### Added
+
+- **`bind:`** for two-way inputs. `bind:value={draft}` replaces a
+  `value=` and an `on:input=` that have to agree. It picks the property
+  and event from the element — a checkbox binds `checked` and listens
+  for `change`, a `<select>` listens for `change` — and reads a number
+  input as a number, so `qty * 2` gives `10` rather than `"52"`. The
+  signal is named, not called: `bind:value={draft()}` cannot write back
+  and is rejected.
+- **Several root elements** in a page or component, collected into a
+  fragment. A component had to have exactly one root, so returning a
+  pair of `<li>`s meant a wrapper `<div>` that is not valid inside a
+  `<ul>`.
+- The main `azoxjs` entry now re-exports the whole reactivity surface,
+  so it and `azoxjs/reactivity` offer the same thing.
 
 ### Changed
 
@@ -23,6 +43,15 @@ between minor versions; each such change is listed here.
 
 ### Fixed
 
+- `bind:value` set the value with `setAttribute`, which sets only the
+  *initial* value — so after a user typed, writing it changed nothing
+  they could see. It is assigned as a property now.
+- A bound value rendered the signal function rather than calling it,
+  putting `() => v` into the server-rendered markup.
+- `checked="false"` is still checked, so a falsy checkbox now omits the
+  attribute entirely.
+- The docs claimed an attribute expression could not hold a raw `>`.
+  It can — the fix for `<` covered both.
 - A stale client module left by an earlier build is removed when a page
   stops needing one, so a deployed site does not keep loading it.
 - Two compiler modules defining the same top-level name broke the

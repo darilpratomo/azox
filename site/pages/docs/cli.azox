@@ -120,10 +120,10 @@ azox compile --page=/blog/first-post</text></CodeBlock>
 
       <CodeBlock label="terminal"><text>$ azox doctor
 
-Azox Framework v0.4.0 - The Sound of Future Web
+Azox Framework v1.0.0 - The Sound of Future Web
 
   ✓ Node 22.11.0
-  ✓ Azox v0.4.0
+  ✓ Azox v1.0.0
   ✓ pages/ (2 pages)
   ✓ /  (pages/index.azox)
   ✓ /about  (pages/about.azox)

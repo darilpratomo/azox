@@ -162,6 +162,80 @@
         </table>
       </div>
 
+      <h2>Two-way inputs</h2>
+      <p>
+        <code>bind:</code> keeps an element and a signal in step in both
+        directions, so you do not write a <code>value=</code> and an
+        <code>on:input=</code> that have to agree.
+      </p>
+
+      <CodeBlock label="bind:value"><text><script>
+  import { signal } from 'azox/reactivity';
+  const draft = signal('');
+</script>
+
+<input bind:value={draft} />
+<p>{draft().length} characters</p></text></CodeBlock>
+
+      <p>
+        The element follows the signal, and the signal follows the
+        element. Setting the signal from anywhere else updates the input
+        too.
+      </p>
+
+      <h3>It picks the right property and event</h3>
+      <p>
+        Written by hand these are easy to get wrong, and wrong quietly.
+      </p>
+
+      <CodeBlock label="three kinds of input"><text><!-- binds `checked`, listens for "change" -->
+<input type="checkbox" bind:checked={agree} />
+
+<!-- read as a number, so qty() * 2 is 10 and not "52" -->
+<input type="number" bind:value={qty} />
+
+<!-- a select listens for "change" -->
+<select bind:value={size}>
+  <option value="s">Small</option>
+  <option value="l">Large</option>
+</select></text></CodeBlock>
+
+      <div class="note">
+        <p>
+          Name the signal, do not call it:
+          <code>bind:value={'{'}draft{'}'}</code>, not
+          <code>bind:value={'{'}draft(){'}'}</code>. A binding has to
+          write back, which a value cannot do — so the called form is
+          rejected at build time rather than half working.
+        </p>
+      </div>
+
+      <h2>More than one root</h2>
+      <p>
+        A page or component may have several root elements. They are
+        placed directly where the component is used, with nothing wrapped
+        around them.
+      </p>
+
+      <CodeBlock label="components/Row.azox"><text><script>
+  const { label, value } = props();
+</script>
+
+<dt>{label}</dt>
+<dd>{value}</dd></text></CodeBlock>
+
+      <CodeBlock label="used in a definition list"><text><dl>
+  <Row label="Name" value="Ada" />
+  <Row label="Role" value="Engineer" />
+</dl></text></CodeBlock>
+
+      <p>
+        This matters where the parent element restricts what may sit
+        inside it: a <code>&lt;div&gt;</code> wrapper is invalid in a
+        <code>&lt;ul&gt;</code>, a <code>&lt;dl&gt;</code> or a
+        <code>&lt;tbody&gt;</code>.
+      </p>
+
       <h2>Importing data</h2>
       <p>
         A <code>&lt;script&gt;</code> block can import a
