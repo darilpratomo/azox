@@ -65,13 +65,15 @@ export function compileToModule(
   // A keyed list disposes the effects of rows that leave, so the
   // module needs dispose as well as effect.
   const needsDispose = statements.some((line) => line.includes('dispose('));
+  const needsUntracked = statements.some((line) => line.includes('untracked('));
 
   const { imports, body } = mergeImports(
     script,
     hoisted,
     runtimeSpecifier,
     needsDispose,
-    inlineModules
+    inlineModules,
+    needsUntracked
   );
 
   // Narrowed to what the module actually reads, so importing
@@ -102,7 +104,8 @@ function mergeImports(
   componentImports,
   runtimeSpecifier,
   needsDispose = false,
-  inlineModules = null
+  inlineModules = null,
+  needsUntracked = false
 ) {
   const pageImports = [...script.matchAll(/^\s*(import\s[^;\n]+;?)\s*$/gm)]
     .map((m) => m[1].trim())
@@ -116,6 +119,24 @@ function mergeImports(
   const named = new Map();
   const verbatim = new Set();
 
+  // A page writes `azox/reactivity`; the compiler's own imports use
+  // whatever runtimeSpecifier it was given. They name the same module,
+  // so they are grouped under one key — otherwise a page importing
+  // `signal` and a keyed list needing it emit two imports that the
+  // build later rewrites to the same path, which is a redeclaration and
+  // a syntax error.
+  //
+  // Only the grouping is normalised. The emitted specifier stays as
+  // written, because rewriting it to a path on disk is the build's job —
+  // the playground compiles in the browser with no build at all.
+  const RUNTIME_ALIASES = new Set([
+    'azox',
+    'azox/reactivity',
+    'azoxjs',
+    'azoxjs/reactivity',
+    runtimeSpecifier,
+  ]);
+
   const record = (statement) => {
     const match = statement.match(/^import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/);
 
@@ -124,7 +145,13 @@ function mergeImports(
       return;
     }
 
-    const [, bindings, specifier] = match;
+    const [, bindings, rawSpecifier] = match;
+    // Grouped under the first spelling seen for the runtime, so the
+    // page's own `azox/reactivity` survives into the output when that is
+    // what was written.
+    const specifier = RUNTIME_ALIASES.has(rawSpecifier)
+      ? runtimeKey(named, rawSpecifier, RUNTIME_ALIASES)
+      : rawSpecifier;
     const set = named.get(specifier) ?? new Set();
     for (const binding of bindings.split(',')) {
       if (binding.trim()) set.add(binding.trim());
@@ -132,10 +159,17 @@ function mergeImports(
     named.set(specifier, set);
   };
 
+  // The author's imports are recorded first, so the runtime group keeps
+  // the spelling they wrote — `azox/reactivity`, which the build rewrites
+  // later. Recording the compiler's own first would name the group after
+  // runtimeSpecifier and rewrite the author's import here, which is the
+  // build's job and would break the playground's build-free compile.
+  for (const statement of [...componentImports, ...pageImports]) record(statement);
+
   // `effect` is always needed: the compiler emits calls to it.
   record(`import { effect } from '${runtimeSpecifier}';`);
   if (needsDispose) record(`import { dispose } from '${runtimeSpecifier}';`);
-  for (const statement of [...componentImports, ...pageImports]) record(statement);
+  if (needsUntracked) record(`import { untracked } from '${runtimeSpecifier}';`);
 
   const lines = [
     ...[...named].map(([specifier, bindings]) => {
@@ -145,6 +179,15 @@ function mergeImports(
   ];
 
   return { imports: lines.join('\n'), body };
+}
+
+// Returns the key the runtime's imports are already grouped under, or
+// this spelling if it is the first one seen.
+function runtimeKey(named, specifier, aliases) {
+  for (const existing of named.keys()) {
+    if (aliases.has(existing)) return existing;
+  }
+  return specifier;
 }
 
 // An import is inlined when every binding it declares was loaded by
@@ -410,7 +453,7 @@ function emitEach(node, statements) {
 // inside their own effect scope rather than inside the block's, since
 // re-running the block must not tear down rows it is keeping.
 function emitKeyedEach(node, statements) {
-  const params = node.index ? `${node.alias}, ${node.index}` : node.alias;
+  const buildParams = node.index ? `${node.alias}, ${node.index}` : node.alias;
 
   const start = nextId();
   const end = nextId();
@@ -432,12 +475,21 @@ function emitKeyedEach(node, statements) {
   const bodyLines = [];
   const roots = node.children.map((child) => emitNode(child, bodyLines, 'root'));
 
-  statements.push(`const ${build} = (${params}) => {`);
+  // The index is the position the row was built at, and a keyed row is
+  // built once. Reordering therefore moves rows without renumbering
+  // them — the cost of keeping a row rather than rebuilding it. Use the
+  // index for a stable list, and read the position from the data when a
+  // list reorders.
+  statements.push(`const ${build} = (${buildParams}) => {`);
   statements.push(`  let _nodes;`);
-  statements.push(`  const _scope = effect(() => {`);
+  // untracked: the row is built while the list's effect is running, so
+  // without this it becomes that effect's child — and the next list
+  // change tears the row down even though it survived, leaving its
+  // bindings dead and its onCleanup callbacks fired.
+  statements.push(`  const _scope = untracked(() => effect(() => {`);
   for (const line of bodyLines) statements.push(`    ${line}`);
   statements.push(`    _nodes = [${roots.filter((r) => r !== 'null').join(', ')}];`);
-  statements.push(`  });`);
+  statements.push(`  }));`);
   statements.push(`  return { nodes: _nodes, scope: _scope };`);
   statements.push(`};`);
 

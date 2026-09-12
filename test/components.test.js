@@ -291,7 +291,9 @@ test("a stateful component's imports are hoisted to the module", () => {
   const resolved = resolveComponents(parseAzox(source), pagePath, createNodeResolver());
   const js = compileToModule(resolved, { runtimeSpecifier: './runtime.js' });
 
-  const importAt = js.indexOf("import { signal }");
+  // signal is merged into the runtime's import statement rather than
+  // getting one of its own, so match the binding, not the whole line.
+  const importAt = js.search(/^import \{[^}]*\bsignal\b[^}]*\} from/m);
   const scopeAt = js.indexOf('(label) => {');
 
   assert.ok(importAt !== -1, 'the signal import must survive');

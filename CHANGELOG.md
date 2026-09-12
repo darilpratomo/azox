@@ -3,6 +3,34 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
+## Unreleased
+
+### Added
+
+- **Lifecycle hooks.** `onMount(fn)` runs once the DOM the scope built
+  is in the document — the place to measure an element, focus an input,
+  or start a timer. `onCleanup(fn)` runs when the scope goes away: a row
+  leaving a keyed list, or a branch of an `<if>` no longer taken. A
+  function returned from `onMount` becomes its cleanup, so setup and
+  teardown can stay in one place. A cleanup that throws is reported and
+  does not stop the others.
+- **`untracked(fn)`** runs a callback with no effect considered active,
+  so what it creates is owned by nobody and survives the caller
+  re-running.
+
+### Fixed
+
+- **A surviving row in a keyed list stopped being reactive.** Rows were
+  built inside the list's own effect, which made each one its child, so
+  re-running the list tore down every row that survived — its bindings
+  stopped updating and it sat on screen frozen, which is the opposite of
+  what keying promises. Rows are now created with `untracked`.
+- Runtime bindings are merged into one import statement. A page writing
+  `azox/reactivity` and a keyed list needing the same binding produced
+  two imports that the build rewrote to the same path — a redeclaration,
+  so the module never ran. The specifier the author wrote is kept, since
+  rewriting it is the build's job and the playground has no build.
+
 ## 0.3.0 — 2026-09-12
 
 ### Added

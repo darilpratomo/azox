@@ -142,6 +142,12 @@
         variable. Use something stable and unique to the row — a database id,
         not its position, since a position changes when the list does.
       </p>
+      <p>
+        A row that leaves has its effects released, and any
+        <a href="/docs/reactivity"><code>onCleanup</code></a> it registered
+        runs then. Rows that stay are left alone — they keep their state and
+        go on updating.
+      </p>
 
       <div class="note">
         <p>
@@ -157,6 +163,17 @@
           right default for a list of plain text, and it costs nothing to
           leave as it is. Reach for a key when a row holds something worth
           keeping.
+        </p>
+      </div>
+
+      <div class="note note-warn">
+        <p>
+          <strong>A keyed row's <code>index</code> does not renumber.</strong>
+          The row is built once, so its index is the position it was built
+          at. Reordering moves the rows without changing their numbers —
+          that is the cost of keeping a row instead of rebuilding it. When
+          a list reorders and the position matters, read it from your own
+          data.
         </p>
       </div>
 

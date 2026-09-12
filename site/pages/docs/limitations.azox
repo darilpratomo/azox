@@ -24,16 +24,17 @@
         through building one.
       </p>
 
-      <h2>No lifecycle hooks</h2>
+      <h2>The index of a keyed row does not renumber</h2>
       <p>
-        Components <a href="/docs/components">can hold state</a>, but there is
-        nothing that runs when one appears or goes away — no mount, unmount or
-        cleanup hook. A component's script runs once, when the component is
-        built.
+        A keyed row is built once, so the <code>index</code> it was given
+        is the position it was built at. Reordering the list moves the
+        rows without renumbering them — the cost of keeping a row rather
+        than rebuilding it.
       </p>
       <p>
-        This matters if you need to start a timer, open a subscription, or
-        attach a listener to <code>window</code> and take it down again later.
+        Use the index for a list that grows and shrinks at the end. When
+        a list reorders and the position matters, read it from your own
+        data instead.
       </p>
 
       <h2>Lists rebuild unless you key them</h2>

@@ -99,6 +99,64 @@ total();            // 60
 quantity.set(4);
 total();            // 80</text></CodeBlock>
 
+      <h2>onMount</h2>
+      <p>
+        A script runs while its nodes are still being created, so
+        anything that needs a real element has to wait.
+        <code>onMount</code> runs once they are in the document.
+      </p>
+
+      <CodeBlock label="measuring an element"><text>import { signal, onMount } from 'azox/reactivity';
+
+const width = signal(0);
+let box;
+
+onMount(() => {
+  const measure = () => width.set(box.clientWidth);
+  measure();
+
+  window.addEventListener('resize', measure);
+  // Returned from onMount, so it is this setup's cleanup.
+  return () => window.removeEventListener('resize', measure);
+});</text></CodeBlock>
+
+      <h2>onCleanup</h2>
+      <p>
+        Registers work to undo when the surrounding scope goes away — a
+        timer to clear, a listener to remove, a subscription to close.
+      </p>
+
+      <CodeBlock label="a timer that stops itself"><text>import { signal, onCleanup } from 'azox/reactivity';
+
+const ticks = signal(0);
+const timer = setInterval(() => ticks.set(ticks() + 1), 1000);
+
+onCleanup(() => clearInterval(timer));</text></CodeBlock>
+
+      <p>
+        A scope goes away when a row leaves a
+        <a href="/docs/control-flow">keyed list</a>, or when an
+        <code>&lt;if&gt;</code> takes the other branch. It also runs
+        before an <code>effect</code> re-runs, so each run can undo the
+        one before it.
+      </p>
+
+      <div class="note">
+        <p>
+          At the top level of a page there is nothing that ever removes
+          the scope, so <code>onCleanup</code> never runs there. That is
+          a page living as long as the document, not a failure.
+        </p>
+      </div>
+
+      <div class="note">
+        <p>
+          A cleanup that throws is reported to the console and the rest
+          still run — a half-cleaned scope would leak whatever the others
+          were holding.
+        </p>
+      </div>
+
       <h2>How this reaches the DOM</h2>
       <p>
         This is where Azox differs from a Virtual DOM framework. A binding in

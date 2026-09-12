@@ -187,6 +187,39 @@ There is still no component instance at runtime: the compiler wraps
 each use in its own JavaScript scope, which is ordinary scoping
 rather than a framework construct.
 
+## Lifecycle
+
+`onMount` runs once the DOM is in the document; `onCleanup` runs when
+the scope goes away.
+
+```html
+<script>
+  import { signal, onMount, onCleanup } from 'azox/reactivity';
+
+  const width = signal(0);
+  let box;
+
+  onMount(() => {
+    // The nodes exist now, so they can be measured.
+    const onResize = () => width.set(box.clientWidth);
+    onResize();
+
+    window.addEventListener('resize', onResize);
+    // Returned from onMount, so it is the cleanup for this setup.
+    return () => window.removeEventListener('resize', onResize);
+  });
+
+  onCleanup(() => console.log('gone'));
+</script>
+
+<div>{width()}px</div>
+```
+
+A scope goes away when a row leaves a keyed list, or when an `<if>`
+takes the other branch. At the top level of a page nothing ever removes
+it, so `onCleanup` there never runs — that is a page living as long as
+the document, not a failure.
+
 ## Layouts and the document head
 
 A component can carry a `<head>` block, so one shared component holds

@@ -374,7 +374,53 @@ test('a keyed list keeps a map of rows and disposes the ones that go', () => {
 
   assert.match(code, /new Map\(\)/, 'rows are remembered between runs');
   assert.match(code, /dispose\(_row\.scope\)/, 'a departing row releases its effects');
-  assert.match(code, /import \{ effect, dispose \}/, 'dispose is imported');
+  assert.match(code, /import \{[^}]*\bdispose\b[^}]*\}/, 'dispose is imported');
+
+  // A row is built inside the list's own effect, so without untracked
+  // it becomes that effect's child — and the next list change tears the
+  // row down even though it survived, leaving its bindings dead.
+  assert.match(code, /untracked\(\(\) => effect\(/, 'a row must not be owned by the list');
+  assert.match(code, /import \{[^}]*\buntracked\b[^}]*\}/, 'untracked is imported');
+});
+
+// Regression: the page writes `azox/reactivity` while the compiler's
+// own imports use the runtime specifier it was given. Recorded as two
+// specifiers, a page importing signal plus a keyed list needing it
+// emitted two import statements that the build then rewrote to the
+// same path — a redeclaration, so the module never ran.
+test('runtime bindings merge into one import statement', () => {
+  const code = compileToModule(
+    parseAzox(`<script>
+  import { signal } from 'azox/reactivity';
+  const xs = signal([]);
+</script>
+<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>`),
+    { runtimeSpecifier: './runtime.js' }
+  );
+
+  const imports = code.split('\n').filter((line) => line.startsWith('import '));
+
+  assert.equal(imports.length, 1, 'one statement, not one per binding');
+  for (const name of ['signal', 'effect', 'dispose', 'untracked']) {
+    assert.match(imports[0], new RegExp(`\\b${name}\\b`), `${name} must be imported`);
+  }
+});
+
+// The compiler must not rewrite the author's specifier to a path on
+// disk: that is the build's job, and the playground compiles in the
+// browser with no build at all.
+test('merging keeps the specifier the author wrote', () => {
+  const code = compileToModule(
+    parseAzox(`<script>
+  import { signal } from 'azox/reactivity';
+  const xs = signal([]);
+</script>
+<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>`),
+    { runtimeSpecifier: './runtime.js' }
+  );
+
+  assert.match(code, /from 'azox\/reactivity'/);
+  assert.doesNotMatch(code, /from '\.\/runtime\.js'/);
 });
 
 test('an unkeyed list neither remembers rows nor imports dispose', () => {

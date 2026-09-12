@@ -82,17 +82,25 @@ test('page title comes from the project name', () => {
 
 // Regression: the runtime was once imported through two different
 // specifiers, producing two module instances with unlinked signals.
+//
+// Bindings from the runtime are now merged into one import statement,
+// so the check is that nothing points anywhere else — not that there
+// are several statements.
 test('every runtime import resolves to the single copied runtime', () => {
   azox(['compile']);
   const client = readFileSync(join(projectDir, '.azox/build/page.client.js'), 'utf8');
 
   const specifiers = [...client.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
-  assert.ok(specifiers.length >= 2, 'expected runtime imports in the output');
+  assert.ok(specifiers.length >= 1, 'expected runtime imports in the output');
   assert.deepEqual(
     [...new Set(specifiers)],
     ['./azox-runtime.js'],
     'all imports must point at the one copied runtime'
   );
+
+  // And the bindings the page needs are all actually there.
+  assert.match(client, /^import \{[^}]*\beffect\b[^}]*\} from '\.\/azox-runtime\.js';/m);
+  assert.match(client, /^import \{[^}]*\bsignal\b[^}]*\} from '\.\/azox-runtime\.js';/m);
 });
 
 test('compiled page is reactive when executed', async () => {

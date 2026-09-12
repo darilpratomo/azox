@@ -28,6 +28,16 @@ export function serverComputed(fn) {
   return () => fn();
 }
 
+// Server rendering produces a string: there is no DOM to mount into,
+// and nothing is ever removed, so both hooks do nothing here. The real
+// ones take over in the browser.
+//
+// They still have to exist, or a component that uses them fails the
+// build with "onMount is not defined" — the page would be unbuildable
+// rather than merely non-reactive on the server.
+export function serverOnMount() {}
+export function serverOnCleanup() {}
+
 // Every top-level binding the script introduces, so they can all be
 // handed to the markup. Function and class declarations count too — a
 // component may well define a helper the template calls.
@@ -75,6 +85,8 @@ export function evaluateScript(body, params = [], args = [], modules = {}, extra
   const fn = new Function(
     'signal',
     'computed',
+    'onMount',
+    'onCleanup',
     ...imported,
     ...extraNames,
     ...params,
@@ -84,6 +96,8 @@ export function evaluateScript(body, params = [], args = [], modules = {}, extra
   const declared = fn(
     serverSignal,
     serverComputed,
+    serverOnMount,
+    serverOnCleanup,
     ...imported.map((n) => modules[n]),
     ...extraNames.map((n) => extras[n]),
     ...args
