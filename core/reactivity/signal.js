@@ -181,3 +181,55 @@ export function computed(fn) {
   effect(() => derived.set(fn()));
   return derived;
 }
+
+/* ---------- hydration ---------- */
+
+// A cursor over server-rendered nodes, so hydration can bind to what is
+// already on the page instead of replacing it. Replacing destroys the
+// reader's focus, caret and anything they had expanded.
+//
+// `next` returns the node the compiled module expected, or null when the
+// markup does not match — a stale cache, an edited page, a host without
+// a walkable DOM. The module then creates that node as it always did, so
+// a mismatch costs the work we already do rather than a broken page.
+export function adopt(parent) {
+  // A minimal DOM stub — the compiler's own tests use one — has no
+  // childNodes to walk. Creating is then the only option.
+  if (!parent || typeof parent !== 'object' || !parent.firstChild) {
+    return { next: () => null, done: () => {} };
+  }
+
+  // Snapshotted rather than walked through `nextSibling`. The caller
+  // appends each node it adopts, and appending a node that is already a
+  // child detaches and re-attaches it — which rewrites `nextSibling` for
+  // whatever preceded it. A lazy walk therefore ends up pointing at a
+  // node it already handed out, and the sweep below deletes the live
+  // page. Measured: every child adopted in the right order, and every
+  // one removed a moment later. The list is fixed before any of that can
+  // happen, so reordering cannot move the cursor.
+  const kids = [];
+  for (let child = parent.firstChild; child; child = child.nextSibling) kids.push(child);
+  let i = 0;
+
+  return {
+    // `expect` is a tag name for an element, or null for a text node.
+    next(expect) {
+      const current = kids[i];
+      if (!current) return null;
+
+      const isText = current.nodeType === 3;
+      const matches = expect === null ? isText : !isText && current.nodeName?.toLowerCase() === expect;
+
+      if (!matches) return null;
+
+      i++;
+      return current;
+    },
+
+    // Anything the server sent that the module did not claim is stale
+    // and has to go, or it would linger below the adopted nodes.
+    done() {
+      for (; i < kids.length; i++) kids[i].remove?.();
+    },
+  };
+}

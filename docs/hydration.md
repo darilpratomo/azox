@@ -91,6 +91,59 @@ sites, all read:
 `appendChildren` is nearly a single choke point — two call sites, both
 inside `emitNode` — which is where the cursor should live.
 
+### `appendChild` is not a no-op, and that is the whole trap
+
+The first working walker adopted every node correctly and still emptied
+the page: the probe measured `<main></main>` with `inputCount: 0`, worse
+than the rebuild it replaced.
+
+The cause is that `appendChild` on a node that is already a child
+*detaches and re-attaches* it, which rewrites `nextSibling` for whatever
+preceded it. The walker reads `nextSibling` lazily, so appending each
+adopted child pushes it behind the cursor. Measured in isolation on
+`<a><b><i>`:
+
+    adopted in order    : A, B, I     (correct)
+    final child order   : A, B, I     (correct)
+    cursor pointer after: A           (wrong — it should be null)
+
+`done()` then walks forward from A and removes all three. Adoption was
+never wrong; the sweep was, because the pointer had been re-seeded
+behind it.
+
+So an adopted node must not be appended at all — it is already in
+position. Only a created node needs appending, which means the emitted
+code has to distinguish the two cases at runtime rather than funnelling
+both through one `appendChild`. The table above already said
+`appendChildren` should "advance a cursor instead"; the first
+implementation appended as well, and that was the bug.
+
+### The redundant append costs the focus it was meant to save
+
+Snapshotting the child list stopped the sweep from deleting the page,
+and the caret and the open `<details>` then survived — but focus still
+landed on `BODY`. The node itself was fine: `sameInput` was true and a
+manual `focus()` afterwards worked.
+
+Appending is what loses it. Measured in isolation, on a focused input
+that is already a child:
+
+    host.appendChild(input)   // input is already host's child
+    focus: "z" -> "BODY",  caret: 2 -> 2,  same node: true
+
+`appendChild` on an existing child detaches and re-attaches it, and
+detaching a focused element blurs it. So an adopted node must not be
+appended at all — it is already in position. The emitter keeps what the
+cursor returned in its own binding and appends only when that binding is
+empty:
+
+    const _el4 = _el2?.next("input");
+    const _el3 = _el4 ?? document.createElement("input");
+    if (!_el4) _el0.appendChild(_el3);
+
+With that, the measured result on the step-2 fixture is focus, caret and
+`<details>` all preserved, on the server's own nodes.
+
 ### Why it cannot land half-done
 
 A tree where some emitters adopt and others create produces a DOM that
@@ -119,7 +172,13 @@ decision is not yet made.
 1. Renderer emits markers around `<if>` and `<each>`. Self-contained,
    verifiable by comparing server output to the shape the client builds.
 2. An adopt path for static subtrees, behind the existing `render()`
-   signature — the router and the tests depend on it.
+   signature — the router and the tests depend on it. **Done**, with one
+   restriction: a page that emits any control-flow block keeps the old
+   wholesale rebuild. Adopting the markup around a block that still
+   rebuilds itself would bind effects across two generations of nodes,
+   which the section above rules out. `render()` takes an optional
+   cursor as a second argument and creates when it is absent, so the
+   router and the DOM stubs in the tests are unaffected.
 3. Control flow: adopt between the markers rather than rebuilding.
 4. Keyed lists last. They are the hardest: a row's identity has to be
    recovered from the DOM, not just its position.

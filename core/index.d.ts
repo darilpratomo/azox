@@ -11,9 +11,11 @@ export {
   untracked,
   onMount,
   onCleanup,
+  adopt,
   type Signal,
   type ReadonlySignal,
   type EffectHandle,
+  type AdoptCursor,
 } from './reactivity/signal.js';
 
 export { parseAzox, compileToModule } from './compiler/index.js';

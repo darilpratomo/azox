@@ -86,3 +86,18 @@ export declare function onMount(fn: () => void | (() => void)): void;
  * top level of a page — nothing ever removes it.
  */
 export declare function onCleanup(fn: () => void): void;
+
+/** A cursor over server-rendered nodes, used by hydration. */
+export interface AdoptCursor {
+  /** The next node if it matches — a tag name, or null for text. */
+  next(expect: string | null): Node | null;
+  /** Removes anything the module did not claim. */
+  done(): void;
+}
+
+/**
+ * Walks a parent's existing children so hydration can bind to them
+ * rather than replacing them. Returns a cursor that yields null on any
+ * mismatch, at which point the caller creates the node instead.
+ */
+export declare function adopt(parent: Node | null): AdoptCursor;

@@ -19,6 +19,15 @@ export const BLOCK_END = ']';
 let uid = 0;
 const nextId = () => `_el${uid++}`;
 
+// Node variable -> the binding holding what the cursor handed back for
+// it, or absent when the node was created outright. Whoever appends a
+// node consults this: an adopted node is already in place, and
+// appending an existing child detaches and re-attaches it, which blurs
+// it and loses the reader's focus. Set per compile, and cleared with
+// the variable counter — a page compiles twice when it adopts, and the
+// second pass reuses the same names.
+let adoptedOf = new Map();
+
 // Tags that open an SVG document fragment. Everything inside one is in
 // the SVG namespace too, which is threaded down as `inSvg` — <circle>
 // and <path> carry no hint of their own.
@@ -95,13 +104,42 @@ export function compileToModule(
   { runtimeSpecifier, rewriteImports, inlineModules, routeParams }
 ) {
   uid = 0;
+  adoptedOf = new Map();
   // Values the build resolved: their bindings need no effect, which is
   // what lets a page whose only "dynamic" text is a version number ship
   // as a static page.
   constantValues = inlineModules ?? {};
   constantNames = new Set(Object.keys(constantValues));
-  const statements = [];
-  const rootVar = emitNode(ast.markup, statements, 'root');
+  let statements = [];
+  let rootVar = emitNode(ast.markup, statements, 'root');
+
+  // Adoption reuses the nodes the server sent instead of rebuilding
+  // them, which is what preserves focus, a caret position and an open
+  // <details> across hydration.
+  //
+  // Control flow is excluded for now. An <if> or <each> creates its
+  // marker pair and its rows fresh on every run, so a page mixing
+  // adopted markup with a rebuilt block would bind effects across two
+  // generations of nodes — worse than the wholesale rebuild it
+  // replaces. Pages carrying a block keep that rebuild until the
+  // walker can adopt between the markers too; see docs/hydration.md.
+  const hasControlFlow = statements.some((line) => line.includes('createComment('));
+  // A static page ships no hydration block, so no cursor can ever reach
+  // its render(): adopting there would import the walker for nothing.
+  // Decided from this pass, whose effect and listener lines are the same
+  // ones the second pass emits.
+  const staticFirstPass = !statements.some(
+    (line) => line.startsWith('effect(') || line.includes('.addEventListener(')
+  );
+  const adopts = !hasControlFlow && !staticFirstPass;
+  if (adopts) {
+    // Emitted again from a clean slate: the cursor changes almost every
+    // creation site, and reusing the first pass's variable counter
+    // would leave gaps in the names.
+    uid = 0;
+    statements = [];
+    rootVar = emitNode(ast.markup, statements, 'root', false, '_cursor');
+  }
 
   let script = dropComponentImports(ast.script);
   script = resolveRouteDeclarations(script, routeParams);
@@ -134,6 +172,10 @@ export function compileToModule(
   // module needs dispose as well as effect.
   const needsDispose = statements.some((line) => line.includes('dispose('));
   const needsUntracked = statements.some((line) => line.includes('untracked('));
+  const needsAdopt = statements.some((line) => line.includes('adopt('));
+  // The root is adopted from the mount the same way children are, so it
+  // must not be re-appended either.
+  const rootTaken = adoptedOf.get(rootVar);
 
   const { imports, body } = mergeImports(
     script,
@@ -141,7 +183,8 @@ export function compileToModule(
     runtimeSpecifier,
     needsDispose,
     inlineModules,
-    needsUntracked
+    needsUntracked,
+    needsAdopt
   );
 
   // Narrowed to what the module actually reads, so importing
@@ -152,12 +195,12 @@ export function compileToModule(
 ${imports}
 ${inlined}${body}
 
-export function render(mount) {
+export function render(mount${adopts ? ', _cursor = null' : ''}) {
 ${statements.map((line) => '  ' + line).join('\n')}
-  mount.appendChild(${rootVar});
+${rootTaken ? `  if (!${rootTaken}) mount.appendChild(${rootVar});` : `  mount.appendChild(${rootVar});`}
   return ${rootVar};
 }
-${isStatic ? staticNote() : hydrateBlock()}`.trimStart();
+${isStatic ? staticNote() : hydrateBlock(adopts)}`.trimStart();
 }
 
 // Collects every import the module needs into one set of statements,
@@ -173,7 +216,8 @@ function mergeImports(
   runtimeSpecifier,
   needsDispose = false,
   inlineModules = null,
-  needsUntracked = false
+  needsUntracked = false,
+  needsAdopt = false
 ) {
   const pageImports = [...script.matchAll(/^\s*(import\s[^;\n]+;?)\s*$/gm)]
     .map((m) => m[1].trim())
@@ -238,6 +282,7 @@ function mergeImports(
   record(`import { effect } from '${runtimeSpecifier}';`);
   if (needsDispose) record(`import { dispose } from '${runtimeSpecifier}';`);
   if (needsUntracked) record(`import { untracked } from '${runtimeSpecifier}';`);
+  if (needsAdopt) record(`import { adopt } from '${runtimeSpecifier}';`);
 
   const lines = [
     ...[...named].map(([specifier, bindings]) => {
@@ -388,7 +433,18 @@ function staticNote() {
 `;
 }
 
-function hydrateBlock() {
+function hydrateBlock(adopts = false) {
+  const mountLines = adopts
+    ? `  // Adopting: the walker takes each node the server already sent,
+  // so focus, a caret position and an open <details> survive. Anything
+  // that does not match is created instead, and anything left over is
+  // removed — a stale page costs the rebuild we used to do always.
+  const _cursor = adopt(mount);
+  render(mount, _cursor);
+  _cursor.done();`
+    : `  mount.innerHTML = '';
+  render(mount);`;
+
   return `
 // Hydrate: the SSR markup is already on the page, so clear it and
 // mount the reactive version in its place.
@@ -400,8 +456,7 @@ function hydrateBlock() {
 // navigation, so one listener covers both.
 if (typeof document !== 'undefined') {
   const mount = document.querySelector('[data-azox-root]') ?? document.body;
-  mount.innerHTML = '';
-  render(mount);
+${mountLines}
   // Guarded: the emitted module is also run against minimal DOM stubs —
   // in tests, and anywhere rendering happens outside a browser — where
   // CustomEvent and dispatchEvent need not exist.
@@ -416,11 +471,11 @@ if (typeof document !== 'undefined') {
 `;
 }
 
-function emitNode(node, statements, fallbackVar, inSvg = false) {
+function emitNode(node, statements, fallbackVar, inSvg = false, cursor = null) {
   if (!node) return 'null';
 
   if (node.type === 'text') {
-    return emitText(node, statements, fallbackVar);
+    return emitText(node, statements, fallbackVar, cursor);
   }
 
   // A fragment (from <slot />) has no element of its own; it wraps
@@ -428,7 +483,9 @@ function emitNode(node, statements, fallbackVar, inSvg = false) {
   if (node.type === 'fragment') {
     const varName = nextId();
     statements.push(`const ${varName} = document.createDocumentFragment();`);
-    appendChildren(varName, node.children, statements, fallbackVar, inSvg);
+    // A fragment owns no node of its own, so its children are adopted
+    // against the parent's cursor rather than a new one.
+    appendChildren(varName, node.children, statements, fallbackVar, inSvg, cursor, true);
     return varName;
   }
 
@@ -442,17 +499,35 @@ function emitNode(node, statements, fallbackVar, inSvg = false) {
   // HTML element, so an inline <svg> compiled to something the browser
   // laid out as an unknown HTML tag: present in the DOM, 0×0 on screen.
   const svg = inSvg || SVG_TAGS.has(node.name);
-  statements.push(
-    svg
-      ? `const ${varName} = document.createElementNS("http://www.w3.org/2000/svg", ${JSON.stringify(node.name)});`
-      : `const ${varName} = document.createElement(${JSON.stringify(node.name)});`
-  );
+  // With a cursor, take the node the server already sent when it
+  // matches. A mismatch yields null and this falls back to creating, so
+  // a stale page costs the work we do today rather than breaking.
+  const create = svg
+    ? `document.createElementNS("http://www.w3.org/2000/svg", ${JSON.stringify(node.name)})`
+    : `document.createElement(${JSON.stringify(node.name)})`;
+
+  // Optional call: render() is exported, and a direct caller passes no
+  // cursor at all. Without the guard the root line would throw on null
+  // instead of falling back to creating the node.
+  //
+  // The adopted node is kept in its own binding so whoever appends this
+  // one can tell the two cases apart: an adopted node is already in
+  // place, and re-appending it would detach and re-attach it, which
+  // blurs it. See docs/hydration.md.
+  if (cursor) {
+    const taken = nextId();
+    statements.push(`const ${taken} = ${cursor}?.next(${JSON.stringify(node.name)});`);
+    statements.push(`const ${varName} = ${taken} ?? ${create};`);
+    adoptedOf.set(varName, taken);
+  } else {
+    statements.push(`const ${varName} = ${create};`);
+  }
 
   for (const [key, attr] of Object.entries(node.attrs)) {
     emitAttr(varName, key, attr, statements, node.name);
   }
 
-  appendChildren(varName, node.children, statements, fallbackVar, svg);
+  appendChildren(varName, node.children, statements, fallbackVar, svg, cursor);
 
   return varName;
 }
@@ -711,11 +786,48 @@ function emitIf(node, statements) {
   );
 }
 
-function appendChildren(parentVar, children, statements, fallbackVar, inSvg = false) {
-  for (const child of children) {
-    const childVar = emitNode(child, statements, fallbackVar, inSvg);
-    if (childVar !== 'null') statements.push(`${parentVar}.appendChild(${childVar});`);
+function appendChildren(
+  parentVar,
+  children,
+  statements,
+  fallbackVar,
+  inSvg = false,
+  cursor = null,
+  reuseCursor = false
+) {
+  // Each element walks its own children, so a nested cursor is opened
+  // for it. A node the cursor handed back is already in place and must
+  // not be appended: appending an existing child detaches and
+  // re-attaches it, which blurs it and loses the reader's focus. Only a
+  // created node is appended. See docs/hydration.md.
+  //
+  // A fragment is the exception: it owns no node in the document, so
+  // there is nothing to open a cursor against. Its children continue
+  // the parent's walk, and the parent closes it.
+  //
+  // Nothing to walk: a void element like <input> would otherwise open a
+  // cursor and close it again without ever calling next().
+  if (!children.length) return;
+
+  let inner = reuseCursor ? cursor : null;
+  if (!reuseCursor && cursor) {
+    inner = nextId();
+    statements.push(`const ${inner} = adopt(${parentVar});`);
   }
+
+  for (const child of children) {
+    const childVar = emitNode(child, statements, fallbackVar, inSvg, inner);
+    if (childVar === 'null') continue;
+    const taken = adoptedOf.get(childVar);
+    statements.push(
+      taken
+        ? `if (!${taken}) ${parentVar}.appendChild(${childVar});`
+        : `${parentVar}.appendChild(${childVar});`
+    );
+  }
+
+  // Anything the server sent that the module did not claim is stale.
+  if (inner && !reuseCursor) statements.push(`${inner}.done();`);
 }
 
 // createTextNode takes text, not markup, so an entity the author
@@ -741,7 +853,7 @@ function foldLiteralParts(parts) {
   });
 }
 
-function emitText(node, statements, fallbackVar) {
+function emitText(node, statements, fallbackVar, cursor = null) {
   const isFixed = (part) => part.kind === 'static' || part.kind === 'literal';
   node = { ...node, parts: foldConstantParts(foldLiteralParts(node.parts)) };
 
@@ -749,13 +861,29 @@ function emitText(node, statements, fallbackVar) {
   if (node.parts.every(isFixed)) {
     const value = node.parts.map(textValue).join('');
     const varName = nextId();
-    statements.push(`const ${varName} = document.createTextNode(${JSON.stringify(value)});`);
+    if (cursor) {
+      const taken = nextId();
+      statements.push(`const ${taken} = ${cursor}?.next(null);`);
+      statements.push(
+        `const ${varName} = ${taken} ?? document.createTextNode(${JSON.stringify(value)});`
+      );
+      adoptedOf.set(varName, taken);
+    } else {
+      statements.push(`const ${varName} = document.createTextNode(${JSON.stringify(value)});`);
+    }
     return varName;
   }
 
   // Dynamic text: one text node, one effect that rewrites its data.
   const varName = nextId();
-  statements.push(`const ${varName} = document.createTextNode('');`);
+  if (cursor) {
+    const taken = nextId();
+    statements.push(`const ${taken} = ${cursor}?.next(null);`);
+    statements.push(`const ${varName} = ${taken} ?? document.createTextNode('');`);
+    adoptedOf.set(varName, taken);
+  } else {
+    statements.push(`const ${varName} = document.createTextNode('');`);
+  }
   const expr = node.parts
     .map((part) => (isFixed(part) ? JSON.stringify(textValue(part)) : `String(${part.expr})`))
     .join(' + ');
