@@ -191,6 +191,52 @@ yet, so trap 2 does not bite there — until rows are adopted, at which
 point the rule from the section above applies: a row the cursor returned
 must not be re-inserted.
 
+### Per-row markers: measured, and not worth shipping yet
+
+The blocking fact for list adoption is that row boundaries are absent
+from the server's output: `<!--[--><li>a</li><li>b</li><!--]-->` cannot
+tell two one-row lists from one two-row list. The obvious fix is to wrap
+each row in its own pair.
+
+Measured before building it, at 16 B per row:
+
+| rows | added |
+|---|---|
+| 10 | 160 B |
+| 50 | 800 B |
+| 100 | 1.6 kB |
+| 500 | 8 kB |
+
+Against pages of ~11 kB, a 100-row list adds about 14% and a 500-row
+list nearly doubles the document. The block-level markers cost 0.13% and
+were waved through on that basis; this is a different order of cost.
+
+Three reasons not to pay it yet:
+
+- Nothing measurable improves today. This site has no list whose rows
+  contain a focusable control, so there is nothing for adoption to
+  preserve.
+- The cost lands on every hydrating list from the next release, whether
+  or not anything adopts.
+- The row-span problem is unsolved. A row whose body is a nested block
+  records that block's *holder fragment* as its nodes, and the fragment's
+  contents change as the inner block updates. So a row's span is not
+  "the nodes between two markers" in general, and markers added now might
+  be the wrong shape for the adopter that eventually reads them.
+
+Adding a permanent format cost before the consumer's shape is known is
+how you end up changing the format twice.
+
+What is worth noting for whoever picks this up: a row whose body is
+itself an `<if>` or `<each>` **already** emits its own pair, because
+every block wraps its own region —
+
+    <div><!--[--><!--[--><b>A</b><!--]--><!--[--><!--]--><!--]--></div>
+
+so the nested case is already delimited. Only rows of plain markup are
+not. An adopter could start there, on the shape that already exists,
+rather than changing the output first.
+
 ### Keyed lists are the hard part, and go last
 
 A keyed row's identity lives in the data, not the DOM. Adopting one
