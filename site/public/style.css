@@ -2187,6 +2187,17 @@ summary:focus-visible {
   display: flex;
 }
 
+/* The menu button is the only way to another page on a phone, so its
+   reveal is not optional — leaving it out of the rule above hid it
+   everywhere and stranded anyone on a small screen.
+   Scoped to the breakpoint: on a desktop the links are already shown,
+   and a second control for them would be noise. */
+@media (max-width: 859px) {
+  .js .nav-toggle {
+    display: block;
+  }
+}
+
 /* Without the script the docs index is simply open, rather than
    collapsed behind a button that cannot be pressed. */
 html:not(.js) .sidebar-panel {

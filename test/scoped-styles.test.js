@@ -280,3 +280,38 @@ test('the sample survives in the markup', () => {
 
   assert.match(rendered, /\.a \{ color: red \}/, 'the sample is still there to render');
 });
+
+/* ---------- the site's own controls ---------- */
+
+// The menu button is the only way to another page on a phone. It was
+// hidden by default awaiting a `.js` class, and left out of the rule
+// that adds it back — so it disappeared everywhere and stranded anyone
+// on a small screen. Every browser sweep missed it, because they
+// checked overflow and zero-sized elements, never "is this visible".
+test('the mobile menu button is revealed when scripts run', () => {
+  const css = readFileSync(join(process.cwd(), 'site/public/style.css'), 'utf8');
+
+  const hidden = /\.nav-toggle,?\s*[^{]*\{[^}]*display:\s*none/.test(css);
+  assert.ok(hidden, 'it starts hidden, awaiting the js class');
+
+  // And is put back below the breakpoint, where it is the only way in.
+  assert.match(
+    css,
+    /@media \(max-width: 859px\) \{\s*\.js \.nav-toggle \{\s*display: block/,
+    'the .js rule must restore it, scoped to small screens'
+  );
+});
+
+test('every control hidden pending scripts is also revealed', () => {
+  const css = readFileSync(join(process.cwd(), 'site/public/style.css'), 'utf8');
+
+  // The block that hides them, and everything the .js rules bring back.
+  const hiddenBlock = css.match(/\n(\.nav-search,\n\.nav-toggle,\n\.sidebar-toggle) \{\n  display: none;/);
+  assert.ok(hiddenBlock, 'the hidden set is where the test expects it');
+
+  const hiddenNames = hiddenBlock[1].split(',\n').map((s) => s.trim());
+  const revealed = [...css.matchAll(/\.js (\.[\w-]+)/g)].map((m) => m[1]);
+
+  const stranded = hiddenNames.filter((name) => !revealed.includes(name));
+  assert.deepEqual(stranded, [], 'these are hidden and never shown again');
+});

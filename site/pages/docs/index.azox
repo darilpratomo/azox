@@ -25,7 +25,7 @@
 
       <div class="note">
         <p>
-          <strong>Stable.</strong> Azox is at v1.1.0. The template
+          <strong>Stable.</strong> Azox is at v1.2.0. The template
           syntax, the reactivity exports and the shape of the build
           output will not change without a 2.0. See
           <a href="/docs/limitations">limitations</a> for what it
