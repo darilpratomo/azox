@@ -64,6 +64,56 @@ therefore only appear on pages that were already hydrating. Against an
 
 It is also what Svelte, Solid and Vue settled on, for the same reason.
 
+## Step 2: the adopt walker — analysis
+
+Step 1 is done: both sides emit `<!--[-->` and `<!--]-->`, verified
+2-for-2 on a real build. Behaviour is deliberately unchanged — the
+markers are anchors for a walker that does not exist yet.
+
+### Every creation site needs a second mode
+
+Adoption means each `document.create*` call becomes "take the next
+expected node, verify it matches, otherwise give up and rebuild". The
+sites, all read:
+
+| emitter | creates | adopt mode must |
+|---|---|---|
+| `emitNode` element branch | `createElement` / `createElementNS` | take the next element, check `tagName` |
+| `emitNode` fragment branch | `createDocumentFragment` | walk in place, no node of its own |
+| `emitText` static | `createTextNode(value)` | reuse the server's text node |
+| `emitText` dynamic | `createTextNode('')` + `effect` | reuse it, then bind the effect |
+| `emitScope` | component IIFE | walk its single root |
+| `emitControlBlock` | marker pair + fragment | adopt the pair, walk between |
+| `emitKeyedEach` | marker pair + row map | recover each row's identity from the DOM |
+| `emitPlainEach` / `emitIf` | via `emitControlBlock` | as above |
+| `appendChildren` | `appendChild` | advance a cursor instead |
+
+`appendChildren` is nearly a single choke point — two call sites, both
+inside `emitNode` — which is where the cursor should live.
+
+### Why it cannot land half-done
+
+A tree where some emitters adopt and others create produces a DOM that
+is part server, part client, with effects bound to nodes that are no
+longer in the document. That is worse than today, which at least works.
+So this is one change, not a series.
+
+### The fallback is the safety property
+
+Any mismatch — a tag that differs, a missing node, a text node where an
+element was expected — must abandon adoption and rebuild the whole
+root. A stale cache or an edited page then behaves exactly as it does
+now. Without that, adoption fails silently and the page looks right
+while being wrong.
+
+### Keyed lists are the hard part, and go last
+
+A keyed row's identity lives in the data, not the DOM. Adopting one
+means recovering which server-rendered nodes belong to which key,
+which the markers alone do not say. The options are a per-row marker
+carrying the key, or accepting a rebuild for keyed lists only. That
+decision is not yet made.
+
 ## Order of work
 
 1. Renderer emits markers around `<if>` and `<each>`. Self-contained,
