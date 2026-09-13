@@ -18,7 +18,7 @@ const compiled = (markup, script = "import { signal } from 'azox/reactivity';\n 
   });
 
 test('a hydrating page with no control flow adopts the server nodes', () => {
-  const code = compiled('<main><input id="field" /><button on:click={n.set(1)}>go {n()}</button></main>');
+  const code = compiled('<main><input id="field" /><button on:click={() => n.set(1)}>go {n()}</button></main>');
 
   assert.match(code, /import \{[^}]*\badopt\b[^}]*\} from '[^']+'/, 'imports the walker');
   assert.match(code, /export function render\(mount, _cursor = null\)/, 'takes a cursor');
@@ -31,7 +31,7 @@ test('a hydrating page with no control flow adopts the server nodes', () => {
 // anyone mounting by hand call it with a mount and nothing else. Without
 // the guard that call throws on null instead of creating the node.
 test('an adopted node falls back to creation when no cursor is passed', () => {
-  const code = compiled('<main><input id="field" /><button on:click={n.set(1)}>go {n()}</button></main>');
+  const code = compiled('<main><input id="field" /><button on:click={() => n.set(1)}>go {n()}</button></main>');
 
   // Every walk is an optional call, so a missing cursor yields undefined
   // rather than throwing.
@@ -57,7 +57,7 @@ test('an adopted node falls back to creation when no cursor is passed', () => {
 // re-attach it, which blurs it — the bug that cost the reader's focus
 // even after the nodes themselves were preserved.
 test('an adopted node is never appended', () => {
-  const code = compiled('<main><input id="field" /><button on:click={n.set(1)}>go {n()}</button></main>');
+  const code = compiled('<main><input id="field" /><button on:click={() => n.set(1)}>go {n()}</button></main>');
 
   const takenFor = new Map();
   for (const m of code.matchAll(/const (_el\d+) = (_el\d+|_cursor)\?\.next\([^)]*\);\n\s*const (_el\d+) = \1 \?\?/g)) {
@@ -101,7 +101,7 @@ test('a static page does not import the walker', () => {
 // A void element has nothing to walk, so opening a cursor for it and
 // closing it again emits three lines that can never match anything.
 test('a childless element opens no cursor', () => {
-  const code = compiled('<main><input id="field" /><button on:click={n.set(1)}>go {n()}</button></main>');
+  const code = compiled('<main><input id="field" /><button on:click={() => n.set(1)}>go {n()}</button></main>');
 
   const input = code.match(/const (_el\d+) = _el\d+\?\.next\("input"\)/);
   assert.ok(input, 'the input is adopted');

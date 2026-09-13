@@ -133,6 +133,40 @@ test('bind: rejects an arbitrary expression', () => {
   assert.throws(() => compile('<input bind:value={a + b} />'), /needs a signal by name/);
 });
 
+// A listener is the expression itself, so a call runs at build time and
+// its return value becomes the listener. The button then fires once on
+// load and never again, and nothing reports it.
+test('an on: handler that calls instead of wrapping is rejected', () => {
+  assert.throws(
+    () => compile('<button on:click={n.set(1)}>go</button>'),
+    /calls n\.set\(\) while the page is built/
+  );
+  assert.throws(
+    () => compile('<button on:click={count.set(count() + 1)}>go</button>'),
+    /write on:click=\{\(\) =>/
+  );
+});
+
+// Everything a handler is usually written as has to keep working.
+test('the usual handler forms are left alone', () => {
+  for (const handler of [
+    '{handler}',
+    '{handleSubmit}',
+    '{obj.method}',
+    '{fns[i]}',
+    '{() => n.set(1)}',
+    '{(e) => name.set(e.target.value)}',
+    '{async () => save()}',
+    '{function () {}}',
+    '{ready ? go : stop}',
+  ]) {
+    assert.doesNotThrow(
+      () => compile(`<button on:click=${handler}>go</button>`),
+      `${handler} should compile`
+    );
+  }
+});
+
 /* ---------- bind: on the server ---------- */
 
 test('a bound value renders as the plain attribute', () => {

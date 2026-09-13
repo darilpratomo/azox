@@ -954,6 +954,7 @@ const DOM_PROPERTIES = new Set(['value', 'checked', 'selected', 'indeterminate']
 function emitAttr(varName, key, attr, statements, tagName) {
   if (key.startsWith('on:')) {
     const event = key.slice(3);
+    assertHandler(key, attr.expr);
     statements.push(`${varName}.addEventListener(${JSON.stringify(event)}, ${attr.expr});`);
     return;
   }
@@ -977,6 +978,43 @@ function emitAttr(varName, key, attr, statements, tagName) {
 
   // Dynamic attribute: wrap in its own effect, same fine-grained rule as text.
   statements.push(`effect(() => { ${varName}.setAttribute(${JSON.stringify(key)}, String(${attr.expr})); });`);
+}
+
+// A listener is the expression itself, so `on:click={n.set(1)}` passes
+// addEventListener whatever the call returned — and the call already ran
+// while the page was being built. The button then appears to fire once on
+// load and never again, with no error anywhere. Caught here instead.
+//
+// Only a call at the top level is rejected. A handler is far more often a
+// name (`handler`, `obj.method`, `fns[i]`) or an arrow whose body happens
+// to contain a call, and all of those have to keep working.
+function assertHandler(key, rawExpr) {
+  const expr = rawExpr.trim();
+
+  if (/=>/.test(expr)) return;
+  if (/^(async\s+)?function\b/.test(expr)) return;
+
+  const opening = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\[[^\]]*\])*\(/.exec(expr);
+  if (!opening || !expr.endsWith(')')) return;
+
+  // Balanced from the first `(`: only a call that closes at the very end
+  // is the whole expression. `f(1) || g` is something else, and left
+  // alone.
+  let depth = 0;
+  for (let i = opening[0].length - 1; i < expr.length; i++) {
+    if (expr[i] === '(') depth++;
+    else if (expr[i] === ')') {
+      depth--;
+      if (depth === 0 && i !== expr.length - 1) return;
+    }
+  }
+
+  const name = opening[0].slice(0, -1);
+  throw new Error(
+    `Azox: ${key}={${expr}} calls ${name}() while the page is built, and ` +
+      `passes the result as the listener — ` +
+      `write ${key}={() => ${expr}} to call it on the event instead`
+  );
 }
 
 // Two-way binding: the element shows the signal, and the signal follows
