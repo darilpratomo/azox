@@ -264,3 +264,38 @@ test('a page with no components keeps its own head unchanged', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// Open Graph and Twitter cards key on `property`, not `name`. The
+// dedupe rule only knew about `name`, so a shared default in a layout
+// and a page's own tag both shipped — and a scraper takes whichever it
+// reads first, which is the layout's generic one.
+test("a page's og tag replaces a component's", () => {
+  const dir = project({
+    'components/Shell.azox': `<head>
+  <meta property="og:title" content="Default title" />
+  <meta property="og:type" content="website" />
+</head>
+
+<div><slot /></div>`,
+    'pages/index.azox': `<head>
+  <meta property="og:title" content="This page" />
+</head>
+
+<script>
+  import Shell from '../components/Shell.azox';
+</script>
+<Shell><main>body</main></Shell>`,
+  });
+
+  try {
+    const h = head(buildPage(dir, 'index').htmlPath);
+
+    assert.equal(h.match(/property="og:title"/g)?.length, 1, 'exactly one og:title');
+    assert.match(h, /content="This page"/, "the page's own wins");
+    assert.doesNotMatch(h, /Default title/);
+    // A property the page did not set still comes through.
+    assert.match(h, /property="og:type"/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

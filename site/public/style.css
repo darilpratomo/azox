@@ -39,7 +39,9 @@
   /* Text */
   --text: #f2f4f8;
   --text-dim: #9ba3b4;
-  --text-faint: #6b7385;
+  /* Was #6b7385 — 4.08:1 on the page background, below the 4.5:1
+     minimum for body-sized text. Measured, not guessed. */
+  --text-faint: #8892a6;
 
   /* Accents. Kept as small marks — a dot, a hairline, a highlight —
      rather than large fields of colour.
@@ -2169,4 +2171,26 @@ summary:focus-visible {
     padding: 0;
     justify-content: center;
   }
+}
+
+
+/* A button whose only behaviour comes from JavaScript is hidden until
+   that script has run — a visible control that does nothing when
+   pressed is worse than no control at all. site.js removes this. */
+.nav-search,
+.nav-toggle,
+.sidebar-toggle {
+  display: none;
+}
+.js .nav-search,
+.js .sidebar-toggle {
+  display: flex;
+}
+
+/* Without the script the docs index is simply open, rather than
+   collapsed behind a button that cannot be pressed. */
+html:not(.js) .sidebar-panel {
+  max-height: none;
+  opacity: 1;
+  visibility: visible;
 }

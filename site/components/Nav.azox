@@ -1,4 +1,13 @@
 <head>
+  <!-- Shared defaults. A page overriding og:title or og:description in
+       its own <head> replaces these rather than adding a second copy. -->
+  <link rel="canonical" href="https://azox.dev" />
+  <meta property="og:site_name" content="Azox" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Azox — The Sound of Future Web" />
+  <meta property="og:description" content="A web framework built from scratch. No Virtual DOM, no diffing, no runtime dependencies." />
+  <meta property="og:image" content="https://azox.dev/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/style.css" />
   <script src="/site.js" defer></script>

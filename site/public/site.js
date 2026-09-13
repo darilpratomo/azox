@@ -123,6 +123,13 @@ document.addEventListener('click', (event) => {
   flash(button, 'Saved');
 });
 
+// The controls below do nothing until this script runs, so the
+// stylesheet keeps them hidden and this reveals them. The flag is added
+// rather than removed: setting it up the other way needed an inline
+// <script> in the head, which the server pass evaluates — and there is
+// no `document` there.
+document.documentElement.classList.add('js');
+
 /* ---------- Mobile menu ---------- */
 
 // Below the desktop breakpoint the nav links used to scroll sideways

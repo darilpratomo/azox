@@ -5,9 +5,9 @@
   "type": "module",
   "description": "azox.dev \u2014 built with Azox",
   "scripts": {
-    "prebuild": "node build-stats.mjs && node build-search.mjs && node build-playground.mjs",
+    "prebuild": "node build-stats.mjs && node build-search.mjs && node build-sitemap.mjs && node build-playground.mjs",
     "build": "node ../bin/azox.js compile",
-    "predev": "node build-stats.mjs && node build-search.mjs && node build-playground.mjs",
+    "predev": "node build-stats.mjs && node build-search.mjs && node build-sitemap.mjs && node build-playground.mjs",
     "dev": "node ../bin/azox.js dev"
   },
   "router": true

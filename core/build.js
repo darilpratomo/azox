@@ -600,6 +600,12 @@ function uniqueTagName(line) {
   const meta = line.match(/^<meta\s[^>]*name=["']([^"']+)["']/i);
   if (meta) return `meta:${meta[1].toLowerCase()}`;
 
+  // Open Graph and Twitter cards key on `property`, not `name`. Without
+  // this a shared default and a page's own tag both shipped, and a
+  // scraper takes whichever it sees first.
+  const property = line.match(/^<meta\s[^>]*property=["']([^"']+)["']/i);
+  if (property) return `meta:${property[1].toLowerCase()}`;
+
   return null;
 }
 

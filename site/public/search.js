@@ -176,7 +176,11 @@ function wireSearch() {
 
   /* ---------- opening and closing ---------- */
 
+  // What had focus before the dialog opened, so Escape can hand it back.
+  let returnTo = null;
+
   const open = async () => {
+    returnTo = document.activeElement;
     overlay.dataset.open = 'true';
     document.body.style.overflow = 'hidden';
     input.value = '';
@@ -189,6 +193,18 @@ function wireSearch() {
   const close = () => {
     overlay.dataset.open = 'false';
     document.body.style.overflow = '';
+    // Back to whatever opened it, rather than the top of the page.
+    // Looked up again rather than reused: hydration and the router both
+    // replace this markup, so the node captured on open may be gone and
+    // focusing a detached element silently lands on <body>.
+    // The field inside the overlay still holds focus, and the browser
+    // blurs it as the panel hides — after our call, landing on <body>.
+    // Blurring first means the focus below is the last word.
+    if (overlay.contains(document.activeElement)) document.activeElement.blur();
+
+    const back = returnTo?.isConnected ? returnTo : document.querySelector('[data-search-open]');
+    back?.focus?.();
+    returnTo = null;
   };
 
   for (const opener of openers) opener.addEventListener('click', open);
@@ -201,6 +217,31 @@ function wireSearch() {
   input.addEventListener('input', () => {
     results = search(input.value);
     render(input.value);
+  });
+
+  // aria-modal="true" tells a screen reader the rest of the page is
+  // inert, so Tab must not walk out of the dialog into it. Without
+  // this, the first Tab left the reader behind the overlay with no
+  // way back.
+  overlay.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+
+    const focusable = [...overlay.querySelectorAll('input, a[href], button')].filter(
+      (el) => el.offsetParent !== null
+    );
+    if (!focusable.length) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const on = document.activeElement;
+
+    if (event.shiftKey && (on === first || !overlay.contains(on))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (on === last || !overlay.contains(on))) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   input.addEventListener('keydown', (event) => {
