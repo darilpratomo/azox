@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { parseAzox } from '../core/compiler/parser.js';
 import { compileToModule } from '../core/compiler/compileToJs.js';
+import { adopt } from '../core/reactivity/signal.js';
 
 // Hydration used to run `mount.innerHTML = ''` and rebuild the page,
 // which destroyed focus, a caret position and an open <details>. The
@@ -74,6 +75,58 @@ test('an adopted node is never appended', () => {
       `${node} must be appended only when it was created`
     );
   }
+});
+
+// A control-flow block anchors on two comment nodes, and adopting the
+// region between them means adopting the pair itself. The cursor could
+// not name a comment until now: `expect` was a tag or null for text, and
+// a comment is neither.
+test('the cursor can adopt a control-flow marker', () => {
+  const node = (nodeName, nodeType) => ({
+    nodeName,
+    nodeType,
+    childNodes: [],
+    parentNode: null,
+    get firstChild() {
+      return this.childNodes[0] ?? null;
+    },
+    get nextSibling() {
+      if (!this.parentNode) return null;
+      const siblings = this.parentNode.childNodes;
+      return siblings[siblings.indexOf(this) + 1] ?? null;
+    },
+    appendChild(child) {
+      child.parentNode = this;
+      this.childNodes.push(child);
+      return child;
+    },
+    remove() {
+      if (!this.parentNode) return;
+      const siblings = this.parentNode.childNodes;
+      siblings.splice(siblings.indexOf(this), 1);
+      this.parentNode = null;
+    },
+  });
+
+  const parent = node('DIV', 1);
+  const open = node('#comment', 8);
+  const row = node('LI', 1);
+  const text = node('#text', 3);
+  const close = node('#comment', 8);
+  for (const child of [open, row, text, close]) parent.appendChild(child);
+
+  const cursor = adopt(parent);
+  assert.equal(cursor.next('#comment'), open, 'the start marker');
+  assert.equal(cursor.next('li'), row, 'then what is between it');
+  assert.equal(cursor.next(null), text);
+  assert.equal(cursor.next('#comment'), close, 'and the end marker');
+
+  // A marker must not satisfy a request for an element or for text, or a
+  // block's anchors would be adopted as its content.
+  const lone = node('DIV', 1);
+  lone.appendChild(node('#comment', 8));
+  assert.equal(adopt(lone).next('li'), null, 'not an element');
+  assert.equal(adopt(lone).next(null), null, 'not text');
 });
 
 // An <if> or <each> rebuilds its rows on every run. Adopting the markup

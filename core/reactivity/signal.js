@@ -212,13 +212,22 @@ export function adopt(parent) {
   let i = 0;
 
   return {
-    // `expect` is a tag name for an element, or null for a text node.
+    // `expect` is a tag name for an element, null for a text node, or
+    // '#comment' for one of the markers a control-flow block anchors on.
+    // A block's markers are the nodes it later inserts and removes
+    // against, so adopting the region between them means adopting the
+    // pair itself first.
     next(expect) {
       const current = kids[i];
       if (!current) return null;
 
-      const isText = current.nodeType === 3;
-      const matches = expect === null ? isText : !isText && current.nodeName?.toLowerCase() === expect;
+      const type = current.nodeType;
+      const matches =
+        expect === null
+          ? type === 3
+          : expect === '#comment'
+            ? type === 8
+            : type !== 3 && type !== 8 && current.nodeName?.toLowerCase() === expect;
 
       if (!matches) return null;
 

@@ -159,6 +159,38 @@ root. A stale cache or an edited page then behaves exactly as it does
 now. Without that, adoption fails silently and the page looks right
 while being wrong.
 
+### Step 3: what reading the block emitter turned up
+
+Four things, before any code:
+
+**The client never sees the server's markers.** `emitControlBlock`
+creates its `start` and `end` comments fresh and puts them in a holder
+`DocumentFragment`, which is what the parent appends. So the server's
+marker pair — and every row between it — is a different set of nodes
+entirely, swept by the parent's cursor when it calls `done()`. The
+clearing loop inside the block's effect never even sees them. Step 3 is
+therefore "adopt the marker pair", not "make the clearing loop smarter".
+
+**The cursor could not ask for a marker.** `next()` took a tag name or
+null for text, and matched on `nodeType === 3` or `nodeName`. A comment
+is `nodeType` 8 and is unreachable through that contract. `next()` now
+also accepts `'#comment'`, which is the smallest change that makes a
+marker adoptable, and it is in place.
+
+**The holder exists for a reason, so adoption needs two paths.** A
+nested block's markers are rebuilt every time the outer block re-runs,
+long after any one-time mount step has passed — which is why the markers
+go into a fragment immediately. A block's effect therefore has to
+distinguish its first run (adopt what the server sent) from an update
+(build fresh, as today).
+
+**Block bodies are compiled cursor-free.** `emitPlainEach` and `emitIf`
+call `emitNode` with no cursor, and both `renderCall` bodies build a new
+fragment per run and `insertBefore` it. Nothing is adopted inside a block
+yet, so trap 2 does not bite there — until rows are adopted, at which
+point the rule from the section above applies: a row the cursor returned
+must not be re-inserted.
+
 ### Keyed lists are the hard part, and go last
 
 A keyed row's identity lives in the data, not the DOM. Adopting one

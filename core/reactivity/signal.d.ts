@@ -89,7 +89,10 @@ export declare function onCleanup(fn: () => void): void;
 
 /** A cursor over server-rendered nodes, used by hydration. */
 export interface AdoptCursor {
-  /** The next node if it matches — a tag name, or null for text. */
+  /**
+   * The next node if it matches — a tag name, null for text, or
+   * '#comment' for a control-flow marker.
+   */
   next(expect: string | null): Node | null;
   /** Removes anything the module did not claim. */
   done(): void;
