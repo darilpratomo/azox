@@ -3,6 +3,26 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
+## Unreleased
+
+### Added
+
+- **TypeScript declarations.** Without them a TypeScript consumer did
+  not merely lose autocomplete — under `strict` their build failed
+  outright with `TS7016: Could not find a declaration file for module
+  'azoxjs/reactivity'`. Each entry point now resolves its own types.
+
+  Written by hand rather than generated: the runtime carries no JSDoc,
+  so `tsc --declaration` emits `signal(initialValue: any)`, which
+  checks nothing. `signal(0).set('x')` is now an error, and `computed`
+  is read-only — the runtime object does carry `set`, but the deriving
+  effect overwrites whatever you assign, so offering it would invite a
+  bug that looks like the framework losing writes.
+
+### Changed
+
+- `homepage` points at the deployed site rather than the GitHub readme.
+
 ## 1.1.0 — 2026-09-13
 
 ### Fixed
