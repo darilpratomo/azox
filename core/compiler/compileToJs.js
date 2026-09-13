@@ -712,8 +712,10 @@ function emitKeyedEach(node, statements) {
   statements.push(`      ${rows}.set(_key, _row);`);
   statements.push(`    }`);
   statements.push(``);
-  statements.push(`    // Moving a node that is already in place is a no-op in`);
-  statements.push(`    // the DOM, so ordering costs nothing when nothing moved.`);
+  statements.push(`    // insertBefore detaches and re-attaches, even when the node`);
+  statements.push(`    // is already where it belongs — so this re-seeds the row and`);
+  statements.push(`    // would blur anything focused inside it. Harmless while rows`);
+  statements.push(`    // are built fresh, and the thing to fix when they are adopted.`);
   statements.push(`    for (const _node of _row.nodes) _parent.insertBefore(_node, ${end});`);
   statements.push(`    _i++;`);
   statements.push(`  }`);
