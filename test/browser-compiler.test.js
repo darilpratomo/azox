@@ -195,16 +195,30 @@ test('the compiler, renderer and runtime import no Node built-ins', () => {
 // until the bundle is built.
 test('no two compiler modules declare the same top-level name', () => {
   // The same list the playground bundler concatenates, in its order.
+  // Read out of the bundler rather than copied: the list was kept in two
+  // places and drifted, leaving core/renderer/serverScope.js concatenated
+  // into the bundle but unchecked by this test — one of the two files
+  // whose absence already broke the playground once. Parsed rather than
+  // imported, because the bundler writes its output at module scope.
+  const bundler = readFileSync(join(ROOT, 'site/build-playground.mjs'), 'utf8');
+  const block = /const MODULES = \[([\s\S]*?)\n\];/.exec(bundler);
+  assert.ok(block, 'the bundler still declares MODULES as an array literal');
+
+  // Comments are stripped first: one of them contains an apostrophe
+  // ("the playground's own default example"), which otherwise opens a
+  // phantom string and swallows the line after it.
   const MODULES = [
-    'core/buildError.js',
-    'core/compiler/html.js',
-    'core/compiler/parser.js',
-    'core/compiler/sourceResolver.js',
-    'core/compiler/scopeStyles.js',
-    'core/compiler/resolveComponents.js',
-    'core/compiler/compileToJs.js',
-    'core/renderer/renderToHtml.js',
-  ];
+    ...block[1]
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n')
+      .matchAll(/'([^']+)'/g),
+  ].map((match) => match[1]);
+  assert.ok(MODULES.length >= 8, `expected the bundle's modules, got ${MODULES.length}`);
+  assert.ok(
+    MODULES.includes('core/compiler/compileToJs.js'),
+    'the compiler itself must be in the list this test checks'
+  );
 
   const owners = new Map();
   const clashes = [];
