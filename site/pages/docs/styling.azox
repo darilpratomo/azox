@@ -106,11 +106,73 @@
         </p>
       </div>
 
+      <h2>Scoped styles</h2>
+      <p>
+        A component can carry a <code>&lt;style&gt;</code> block. Its
+        rules apply to that component's own markup and nothing else, so
+        two components can both style <code>.card</code> without
+        colliding.
+      </p>
+
+      <CodeBlock label="components/Card.azox"><text><style>
+  .card { border: 1px solid #333; padding: 1rem }
+  .card .title { font-weight: 700 }
+</style>
+
+<article class="card">
+  <h2 class="title">{title}</h2>
+  <slot />
+</article></text></CodeBlock>
+
+      <p>
+        There is no runtime and nothing extra to load. Each selector is
+        rewritten during the build to require an attribute, and the
+        component's own elements are given it:
+      </p>
+
+      <CodeBlock label="what the build emits"><text>.card[data-azox-a1b2c3] { border: 1px solid #333; padding: 1rem }
+.card .title[data-azox-a1b2c3] { font-weight: 700 }</text></CodeBlock>
+
+      <div class="note">
+        <p>
+          The attribute lands on the element a selector actually
+          targets — <code>.card .title</code> scopes the title, not its
+          ancestor. A component used twice contributes its CSS once.
+        </p>
+      </div>
+
+      <div class="note">
+        <p>
+          <strong>Slot content keeps the caller's scope.</strong> Markup
+          nested inside a component tag was written by whoever used the
+          tag, so the component cannot restyle it.
+        </p>
+      </div>
+
+      <h3>Reaching outside the component</h3>
+      <p>
+        <code>:global(...)</code> is the escape hatch for the times a
+        component has to style something beyond itself.
+      </p>
+
+      <CodeBlock label=":global"><text><style>
+  :global(body) { margin: 0 }
+</style></text></CodeBlock>
+
+      <h3>A page's own styles</h3>
+      <p>
+        A <code>&lt;style&gt;</code> block in a page is <em>not</em>
+        scoped. A page has no caller to be scoped against, and
+        <code>body</code> written there means the document body, as it says.
+      </p>
+
       <h2>What is not included</h2>
       <p>
-        Azox does not bundle, minify, hash filenames, or process CSS. Files are
-        served as written. If you need a build step for your styles, run it
-        yourself and output into <code>public/</code>.
+        Beyond scoping a component's <code>&lt;style&gt;</code> block,
+        Azox does nothing to your CSS: no bundling, no minification, no
+        hashed filenames, no preprocessor. Files are served as written.
+        If you need a build step for your styles, run it yourself and
+        output into <code>public/</code>.
       </p>
 
       <h2>Next</h2>

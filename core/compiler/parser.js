@@ -16,19 +16,40 @@ export class ParseError extends BuildError {}
 const isComponentName = (name) => /^[A-Z]/.test(name);
 
 export function parseAzox(source) {
-  const scriptMatch = source.match(/<script>([\s\S]*?)<\/script>/);
+  // <script>, <head> and <style> are pulled out of the source before
+  // anything else looks at it. A literal <text> block may contain those
+  // very tags — documenting them requires it — so the spans are blanked
+  // first, and only what is left is searched. Without this, a code
+  // sample showing a <style> block was eaten as the page's own CSS.
+  const searchable = blankTextBlocks(source);
+
+  const scriptMatch = searchable.match(/<script>([\s\S]*?)<\/script>/);
   const script = scriptMatch ? scriptMatch[1].trim() : '';
 
   // An optional <head> block is copied into the document head
   // verbatim: stylesheets, meta tags, fonts. It is markup for the
   // document, not for the page body, so it skips the AST entirely.
-  const headMatch = source.match(/<head>([\s\S]*?)<\/head>/);
+  const headMatch = searchable.match(/<head>([\s\S]*?)<\/head>/);
   const head = headMatch ? headMatch[1].trim() : '';
 
-  const template = source
-    .replace(/<script>[\s\S]*?<\/script>/, '')
-    .replace(/<head>[\s\S]*?<\/head>/, '')
-    .trim();
+  // A <style> block is CSS, not markup. It has to come out before the
+  // tokeniser runs: left in, its braces are read as {expressions} and a
+  // rule like `.a { color: red }` failed the build with "Unexpected
+  // token ':'" — an error about JavaScript, pointing at a stylesheet.
+  const styleMatch = searchable.match(/<style>([\s\S]*?)<\/style>/);
+  const style = styleMatch ? styleMatch[1].trim() : '';
+
+  // Cut by position rather than by pattern: replacing on the source
+  // would remove the first match anywhere, including one inside a
+  // <text> block that was deliberately ignored above.
+  const cuts = [scriptMatch, headMatch, styleMatch]
+    .filter(Boolean)
+    .map((match) => [match.index, match.index + match[0].length])
+    .sort((a, b) => b[0] - a[0]);
+
+  let template = source;
+  for (const [from, to] of cuts) template = template.slice(0, from) + template.slice(to);
+  template = template.trim();
 
   const tokens = tokenize(template);
 
@@ -55,6 +76,7 @@ export function parseAzox(source) {
   return {
     script,
     head,
+    style,
     markup,
     components: parseComponentImports(script),
     props: parsePropNames(script),
@@ -62,6 +84,16 @@ export function parseAzox(source) {
     // component destructures its props.
     params: parseParamNames(script),
   };
+}
+
+// Replaces the contents of every <text> block with spaces, keeping the
+// length and therefore every offset in the original. What a <text>
+// block holds is literal by definition, so nothing inside one should be
+// mistaken for the page's script, head or style.
+function blankTextBlocks(source) {
+  return source.replace(/<text>[\s\S]*?<\/text>/g, (block) =>
+    `<text>${' '.repeat(Math.max(0, block.length - '<text></text>'.length))}</text>`
+  );
 }
 
 // Component imports are written as ordinary import statements, so an

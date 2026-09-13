@@ -7,6 +7,7 @@
 // been written by hand.
 
 import { parseAzox } from './parser.js';
+import { scopeId, scopeAttribute, scopeCss } from './scopeStyles.js';
 import { BuildError } from '../buildError.js';
 
 // Extends BuildError so the CLI reports it as a user-facing problem
@@ -20,7 +21,14 @@ export class ComponentError extends BuildError {}
 // `resolver` decides how an import specifier becomes source text, so
 // this runs unchanged against disk or against an in-memory map. See
 // sourceResolver.js.
-export function resolveComponents(ast, sourcePath, resolver, seen = new Set(), heads = null) {
+export function resolveComponents(
+  ast,
+  sourcePath,
+  resolver,
+  seen = new Set(),
+  heads = null,
+  styles = null
+) {
   // Imports from stateful components are hoisted here: they cannot
   // live inside the scope function the compiler builds for each one.
   //
@@ -37,17 +45,31 @@ export function resolveComponents(ast, sourcePath, resolver, seen = new Set(), h
   // now only a page could put one there.
   const collected = heads ?? new Map();
 
-  const markup = expand(ast.markup, ast, sourcePath, resolver, seen, hoisted, collected);
+  // A component's <style> block is collected the same way and keyed by
+  // the same path, so a component used twice contributes its CSS once.
+  const collectedStyles = styles ?? new Map();
+
+  const markup = expand(
+    ast.markup,
+    ast,
+    sourcePath,
+    resolver,
+    seen,
+    hoisted,
+    collected,
+    collectedStyles
+  );
 
   return {
     ...ast,
     markup,
     componentImports: [...hoisted.values()],
     componentHeads: [...collected.values()],
+    componentStyles: [...collectedStyles.values()],
   };
 }
 
-function expand(node, ast, sourcePath, resolver, seen, hoisted, heads) {
+function expand(node, ast, sourcePath, resolver, seen, hoisted, heads, styles) {
   if (!node || node.type === 'text') return node;
 
   // <if> keeps its children in two branches rather than in `children`,
@@ -57,16 +79,16 @@ function expand(node, ast, sourcePath, resolver, seen, hoisted, heads) {
     return {
       ...node,
       then: node.then.map((child) =>
-        expand(child, ast, sourcePath, resolver, seen, hoisted, heads)
+        expand(child, ast, sourcePath, resolver, seen, hoisted, heads, styles)
       ),
       otherwise: node.otherwise.map((child) =>
-        expand(child, ast, sourcePath, resolver, seen, hoisted, heads)
+        expand(child, ast, sourcePath, resolver, seen, hoisted, heads, styles)
       ),
     };
   }
 
   const children = (node.children ?? []).map((child) =>
-    expand(child, ast, sourcePath, resolver, seen, hoisted, heads)
+    expand(child, ast, sourcePath, resolver, seen, hoisted, heads, styles)
   );
 
   if (node.type !== 'component') {
@@ -83,12 +105,26 @@ function expand(node, ast, sourcePath, resolver, seen, hoisted, heads) {
     component.path,
     resolver,
     new Set([...seen, component.path]),
-    heads
+    heads,
+    styles
   );
 
   // Keyed by path: a component used on a page twice must not emit its
   // stylesheet link twice.
   if (component.ast.head) heads.set(component.path, component.ast.head);
+
+  // A <style> block scopes to this component: its selectors are
+  // rewritten to require an attribute, and that attribute is put on the
+  // markup below. Both halves key off the same path, so the CSS and the
+  // elements it targets always agree.
+  let scope = null;
+
+  if (component.ast.style) {
+    scope = scopeId(component.path);
+    styles.set(component.path, scopeCss(component.ast.style, scope));
+  }
+
+  if (scope) markScope(inner.markup, scopeAttribute(scope));
 
   const values = propValues(node, component.ast.props);
   const { logic, imports } = componentLogic(component.ast.script);
@@ -158,6 +194,30 @@ function componentLogic(script) {
   const meaningful = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
   return { logic: meaningful.trim() ? body.trim() : null, imports };
+}
+
+// Puts the scope attribute on every element the component owns.
+//
+// Slot content is skipped: it was written by whoever used the tag, so
+// it belongs to the caller's scope, and a component must not restyle
+// markup it did not write.
+function markScope(node, attribute) {
+  if (!node || node.type === 'text') return;
+
+  if (node.type === 'fragment' && node.slot) return;
+
+  if (node.type === 'element' || node.type === 'component') {
+    node.attrs = { ...node.attrs, [attribute]: { kind: 'static', value: '' } };
+  }
+
+  if (node.type === 'if') {
+    for (const child of [...(node.then ?? []), ...(node.otherwise ?? [])]) {
+      markScope(child, attribute);
+    }
+    return;
+  }
+
+  for (const child of node.children ?? []) markScope(child, attribute);
 }
 
 function loadComponent(name, ast, sourcePath, resolver, seen) {

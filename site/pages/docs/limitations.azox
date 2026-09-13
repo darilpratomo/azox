@@ -97,9 +97,11 @@
 
       <h2>No CSS pipeline</h2>
       <p>
-        Files in <code>public/</code> are copied as-is. Nothing is bundled,
-        minified, scoped or hashed. There is no scoped-styles feature: a
-        component's styles are global like any other CSS.
+        A component's <a href="/docs/styling"><code>&lt;style&gt;</code>
+        block is scoped</a>, but that is the only thing Azox does to
+        your CSS. Files in <code>public/</code> are copied as-is:
+        nothing is bundled, minified or hashed, and there is no
+        preprocessor.
       </p>
 
       <h2>Expressions are evaluated during the build</h2>

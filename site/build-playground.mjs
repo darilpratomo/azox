@@ -22,6 +22,9 @@ const MODULES = [
   'core/compiler/html.js',
   'core/compiler/parser.js',
   'core/compiler/sourceResolver.js',
+  // resolveComponents imports the scoping helpers; left out, the
+  // playground fails to parse the whole bundle.
+  'core/compiler/scopeStyles.js',
   'core/compiler/resolveComponents.js',
   'core/compiler/compileToJs.js',
   // renderToHtml imports evaluateScript from here. Left out, every

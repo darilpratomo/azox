@@ -200,6 +200,7 @@ test('no two compiler modules declare the same top-level name', () => {
     'core/compiler/html.js',
     'core/compiler/parser.js',
     'core/compiler/sourceResolver.js',
+    'core/compiler/scopeStyles.js',
     'core/compiler/resolveComponents.js',
     'core/compiler/compileToJs.js',
     'core/renderer/renderToHtml.js',

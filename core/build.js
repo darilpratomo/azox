@@ -132,7 +132,18 @@ export function buildRoute(projectDir, route, { transformHtml } = {}) {
   // A component's <head> block is merged in behind the page's own, so
   // a layout can carry the stylesheet and fonts every page needs while
   // the page keeps the last word on its title and description.
-  const head = mergeHeads(ast.head, ast.componentHeads ?? []);
+  // A component's scoped CSS is plain stylesheet text by this point,
+  // with every selector already rewritten to require its scope
+  // attribute. One <style> carries all of them, so a page makes no
+  // extra request for styles that are only a few lines each.
+  // A page's own <style> is global: it has no caller to be scoped
+  // against, and `body { … }` in a page should mean what it says.
+  // Without this it was extracted by the parser and then silently
+  // dropped, which is worse than the error it used to raise.
+  const scoped = [ast.style, ...(ast.componentStyles ?? [])].filter(Boolean);
+  const styleTag = scoped.length ? `<style>\n${scoped.join('\n')}\n</style>` : '';
+
+  const head = mergeHeads(ast.head, [...(ast.componentHeads ?? []), styleTag].filter(Boolean));
 
   let document = wrapDocument(html, projectTitle(projectDir), head, {
     routerSrc: router ? `${route.assetPrefix}${ROUTER_FILENAME}` : null,

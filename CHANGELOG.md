@@ -7,6 +7,24 @@ between minor versions; each such change is listed here.
 
 ### Added
 
+- **Scoped styles.** A component can carry a `<style>` block whose
+  rules apply to its own markup and nothing else, so two components can
+  both style `.card` without colliding. No runtime and nothing to load:
+  each selector is rewritten at build time to require an attribute, and
+  the component's elements are given it. The attribute lands on the
+  element a selector actually targets, so `.card .title` scopes the
+  title rather than its ancestor.
+
+  Slot content keeps the caller's scope — markup nested inside a
+  component tag was written by whoever used it. `:global(...)` is the
+  escape hatch. A page's own `<style>` is not scoped, since a page has
+  no caller and `body { … }` should mean what it says.
+
+  This also fixes a bug: a `<style>` block used to be tokenised as
+  markup, so its braces were read as `{expressions}` and
+  `.a { color: red }` failed the build with "Unexpected token ':'" — an
+  error about JavaScript, pointing at a stylesheet.
+
 - **TypeScript declarations.** Without them a TypeScript consumer did
   not merely lose autocomplete — under `strict` their build failed
   outright with `TS7016: Could not find a declaration file for module
