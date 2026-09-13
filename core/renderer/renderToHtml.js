@@ -102,7 +102,7 @@ function renderScope(node, scope, modules = {}) {
 // so the body sees it the same way the compiled version does.
 function renderEach(node, scope, outer, modules = {}) {
   const items = evalExpr(node.expr, scope);
-  if (items === null || items === undefined) return '';
+  if (items === null || items === undefined) return wrapBlock('');
 
   if (typeof items[Symbol.iterator] !== 'function') {
     throw new BuildError(
@@ -121,12 +121,23 @@ function renderEach(node, scope, outer, modules = {}) {
     index++;
   }
 
-  return html;
+  return wrapBlock(html);
 }
 
 function renderIf(node, scope, outer, modules = {}) {
   const branch = evalExpr(node.expr, scope) ? node.then : node.otherwise;
-  return branch.map((child) => renderNode(child, scope, outer, modules)).join('');
+  const inner = branch.map((child) => renderNode(child, scope, outer, modules)).join('');
+
+  return wrapBlock(inner);
+}
+
+// The same start/end pair the compiler builds, so hydration can adopt
+// the server's nodes instead of discarding them. Labelled, because an
+// empty comment cannot be told apart from its neighbour.
+//
+// See docs/hydration.md.
+function wrapBlock(html) {
+  return `<!--[-->${html}<!--]-->`;
 }
 
 // Reads an attribute expression. A bound one names a signal, so it is

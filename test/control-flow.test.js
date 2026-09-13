@@ -79,7 +79,7 @@ test('<if> without cond= is rejected', () => {
 test('a list renders on the server', () => {
   assert.equal(
     render('<ul><each item={items()} as="x"><li>{x}</li></each></ul>', { items: sig(['a', 'b']) }),
-    '<ul><li>a</li><li>b</li></ul>'
+    '<ul><!--[--><li>a</li><li>b</li><!--]--></ul>'
   );
 });
 
@@ -88,42 +88,42 @@ test('the index is available in the body', () => {
     render('<ul><each item={items()} as="x" index="i"><li>{i}:{x}</li></each></ul>', {
       items: sig(['a', 'b']),
     }),
-    '<ul><li>0:a</li><li>1:b</li></ul>'
+    '<ul><!--[--><li>0:a</li><li>1:b</li><!--]--></ul>'
   );
 });
 
 test('an empty list renders nothing', () => {
   assert.equal(
     render('<ul><each item={items()} as="x"><li>{x}</li></each></ul>', { items: sig([]) }),
-    '<ul></ul>'
+    '<ul><!--[--><!--]--></ul>'
   );
 });
 
 test('a null list renders nothing rather than throwing', () => {
   assert.equal(
     render('<ul><each item={items()} as="x"><li>{x}</li></each></ul>', { items: sig(null) }),
-    '<ul></ul>'
+    '<ul><!--[--><!--]--></ul>'
   );
 });
 
 test('a true condition renders the first branch', () => {
   assert.equal(
     render('<div><if cond={ok()}><p>yes</p><else /><p>no</p></if></div>', { ok: sig(true) }),
-    '<div><p>yes</p></div>'
+    '<div><!--[--><p>yes</p><!--]--></div>'
   );
 });
 
 test('a false condition renders the second branch', () => {
   assert.equal(
     render('<div><if cond={ok()}><p>yes</p><else /><p>no</p></if></div>', { ok: sig(false) }),
-    '<div><p>no</p></div>'
+    '<div><!--[--><p>no</p><!--]--></div>'
   );
 });
 
 test('a false condition with no else renders nothing', () => {
   assert.equal(
     render('<div><if cond={ok()}><p>yes</p></if></div>', { ok: sig(false) }),
-    '<div></div>'
+    '<div><!--[--><!--]--></div>'
   );
 });
 
@@ -135,7 +135,7 @@ test('<if> nested inside <each> sees the loop variable', () => {
         { name: 'B', on: false },
       ]),
     }),
-    '<div><b>A</b></div>'
+    '<div><!--[--><!--[--><b>A</b><!--]--><!--[--><!--]--><!--]--></div>'
   );
 });
 
@@ -145,7 +145,7 @@ test('loops nest', () => {
       '<div><each item={outer()} as="o"><each item={o.items} as="i"><b>{i}</b></each></each></div>',
       { outer: sig([{ items: ['a', 'b'] }, { items: ['c'] }]) }
     ),
-    '<div><b>a</b><b>b</b><b>c</b></div>'
+    '<div><!--[--><!--[--><b>a</b><b>b</b><!--]--><!--[--><b>c</b><!--]--><!--]--></div>'
   );
 });
 
@@ -154,7 +154,7 @@ test('values inside a loop are escaped', () => {
     render('<ul><each item={items()} as="x"><li>{x}</li></each></ul>', {
       items: sig(['<script>bad()</script>']),
     }),
-    '<ul><li>&lt;script&gt;bad()&lt;/script&gt;</li></ul>'
+    '<ul><!--[--><li>&lt;script&gt;bad()&lt;/script&gt;</li><!--]--></ul>'
   );
 });
 
@@ -175,7 +175,7 @@ test('<each> over something that is not iterable is reported clearly', () => {
 test('<each> over a string iterates its characters', () => {
   assert.equal(
     render('<ul><each item={s()} as="c"><li>{c}</li></each></ul>', { s: sig('ab') }),
-    '<ul><li>a</li><li>b</li></ul>'
+    '<ul><!--[--><li>a</li><li>b</li><!--]--></ul>'
   );
 });
 
@@ -199,7 +199,7 @@ test('a component inside <if> is resolved', () => {
     })
   );
 
-  assert.equal(renderToHtml(ast, { ok: sig(true) }), '<div><b>shown</b></div>');
+  assert.equal(renderToHtml(ast, { ok: sig(true) }), '<div><!--[--><b>shown</b><!--]--></div>');
 });
 
 // Regression: substituteProps skipped control-flow nodes, so a
@@ -222,7 +222,7 @@ test('a component can loop over one of its props', () => {
 
   assert.equal(
     renderToHtml(ast, { rows: sig(['a', 'b']) }),
-    '<div><ul><li>a</li><li>b</li></ul></div>'
+    '<div><ul><!--[--><li>a</li><li>b</li><!--]--></ul></div>'
   );
 });
 
@@ -241,7 +241,7 @@ test('a component can branch on one of its props', () => {
     })
   );
 
-  assert.equal(renderToHtml(ast, { flag: sig(false) }), '<div><p>no</p></div>');
+  assert.equal(renderToHtml(ast, { flag: sig(false) }), '<div><p><!--[-->no<!--]--></p></div>');
 });
 
 // A loop variable shadows a prop of the same name inside the body,
@@ -261,7 +261,7 @@ test('a loop variable shadows a prop of the same name', () => {
     })
   );
 
-  assert.equal(renderToHtml(ast, { data: sig(['p', 'q']) }), '<ul><li>p</li><li>q</li></ul>');
+  assert.equal(renderToHtml(ast, { data: sig(['p', 'q']) }), '<ul><!--[--><li>p</li><li>q</li><!--]--></ul>');
 });
 
 test('an unimported component inside control flow is still caught', () => {
@@ -278,9 +278,14 @@ test('an unimported component inside control flow is still caught', () => {
 
 /* ---------- compiled output ---------- */
 
-test('a control block is anchored by comment nodes', () => {
+// Labelled, not empty: an empty comment serialises to <!---->, so two
+// adjacent blocks give four identical nodes and a walker adopting the
+// server's markup cannot tell a start from an end. See docs/hydration.md.
+test('a control block is anchored by labelled comment nodes', () => {
   const code = compile('<ul><each item={items()} as="x"><li>{x}</li></each></ul>');
-  assert.match(code, /createComment\(''\)/);
+
+  assert.match(code, /createComment\('\['\)/, 'a start marker');
+  assert.match(code, /createComment\('\]'\)/, 'and an end marker');
 });
 
 test('the loop body is compiled once, not per item', () => {
@@ -363,7 +368,7 @@ test('a keyed list renders the same HTML as an unkeyed one', () => {
 
   assert.equal(
     render('<ul><each item={xs()} as="x" key={x.id}><li>{x.n}</li></each></ul>', scope),
-    '<ul><li>a</li><li>b</li></ul>'
+    '<ul><!--[--><li>a</li><li>b</li><!--]--></ul>'
   );
 });
 

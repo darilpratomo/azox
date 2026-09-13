@@ -425,7 +425,7 @@ test('a stateful component works inside a loop', () => {
 <main><each item={rows()} as="r"><Counter label={r} /></each></main>`,
       { rows: () => ['a', 'b'] }
     ),
-    '<main><span>a:0</span><span>b:0</span></main>'
+    '<main><!--[--><span>a:0</span><span>b:0</span><!--]--></main>'
   );
 });
 
@@ -438,7 +438,7 @@ test('a stateful component works inside a conditional', () => {
 <main><if cond={ok()}><Counter label="x" /></if></main>`,
       { ok: () => true }
     ),
-    '<main><span>x:0</span></main>'
+    '<main><!--[--><span>x:0</span><!--]--></main>'
   );
 });
 
@@ -457,7 +457,7 @@ test('a component can loop over its own state', () => {
   import OwnList from '../components/OwnList.azox';
 </script>
 <main><OwnList /></main>`),
-    '<main><ul><li>p</li><li>q</li></ul></main>'
+    '<main><ul><!--[--><li>p</li><li>q</li><!--]--></ul></main>'
   );
 });
 

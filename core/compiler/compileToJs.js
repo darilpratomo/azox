@@ -7,6 +7,15 @@
 // the browser, which is what makes the playground possible. Anything
 // that needs to know about paths on disk belongs in build.js.
 
+// Control-flow markers carry a label. An empty comment serialises to
+// <!---->, so two adjacent blocks produce four identical nodes and a
+// walker adopting server markup cannot tell a start from an end, nor
+// one block from the next. The server emits the same pair.
+//
+// See docs/hydration.md.
+export const BLOCK_START = '[';
+export const BLOCK_END = ']';
+
 let uid = 0;
 const nextId = () => `_el${uid++}`;
 
@@ -495,8 +504,8 @@ function emitControlBlock(statements, buildBody, sourceExpr, renderCall) {
 
   const holder = nextId();
 
-  statements.push(`const ${start} = document.createComment('');`);
-  statements.push(`const ${end} = document.createComment('');`);
+  statements.push(`const ${start} = document.createComment('${BLOCK_START}');`);
+  statements.push(`const ${end} = document.createComment('${BLOCK_END}');`);
 
   // The markers go into their own fragment straight away, so they
   // always have a parent to insert into. Waiting for the page to be
@@ -561,8 +570,8 @@ function emitKeyedEach(node, statements) {
   const rows = nextId();
   const holder = nextId();
 
-  statements.push(`const ${start} = document.createComment('');`);
-  statements.push(`const ${end} = document.createComment('');`);
+  statements.push(`const ${start} = document.createComment('${BLOCK_START}');`);
+  statements.push(`const ${end} = document.createComment('${BLOCK_END}');`);
   statements.push(`const ${holder} = document.createDocumentFragment();`);
   statements.push(`${holder}.append(${start}, ${end});`);
 
