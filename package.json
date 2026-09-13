@@ -14,7 +14,7 @@
     "url": "https://github.com/darilpratomo/azox/issues"
   },
   "bin": {
-    "azox": "./bin/azox.js"
+    "azox": "bin/azox.js"
   },
   "exports": {
     ".": {
