@@ -19,7 +19,7 @@
     <main class="doc-body">
       <h1>Limitations</h1>
       <p class="lede">
-        Azox is at v1.0.1. This page lists what it does not do, so you can
+        Azox is at v1.1.0. This page lists what it does not do, so you can
         decide whether it fits your project rather than finding out halfway
         through building one.
       </p>
