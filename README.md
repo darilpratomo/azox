@@ -11,7 +11,7 @@ third-party CLI dependencies, no borrowed syntax from React, Vue, or
 Next.js. It compiles `.azox` components directly into fine-grained,
 signal-driven DOM updates.
 
-> Status: stable (v1.2.0). The template syntax, the reactivity exports
+> Status: stable (v1.3.0). The template syntax, the reactivity exports
 > and the shape of the build output will not change without a 2.0. What
 > Azox does **not** do is listed in
 > [Limitations](https://azox.dev/docs/limitations) — those are stopping

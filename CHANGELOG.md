@@ -3,6 +3,76 @@
 Notable changes to Azox. The project is pre-1.0, so APIs may change
 between minor versions; each such change is listed here.
 
+## 1.3.0 — 2026-09-13
+
+### Changed
+
+- **Hydration adopts the server's nodes instead of rebuilding the page.**
+  Mounting used to run `mount.innerHTML = ''` and build everything again,
+  which threw away whatever the reader was in the middle of. Measured on a
+  page with a text field, a `<details>` and a button:
+
+  | | before | after |
+  |---|---|---|
+  | focus | `#field` → nothing | `#field` → `#field` |
+  | caret | 3 → 0 | 3 → 3 |
+  | `<details>` open | true → false | true → true |
+
+  The nodes are the server's own, not replacements that look the same.
+  Anything that does not match what the compiler expected — a stale cache,
+  an edited page — is created as before, so a mismatch costs the work that
+  used to happen every time rather than breaking the page.
+
+  Two DOM traps are worth knowing if you build something similar.
+  `appendChild` on a node that is already a child detaches and re-attaches
+  it, which rewrites `nextSibling` for whatever preceded it: a walker
+  following the sibling chain ends up pointing at a node it already
+  returned, and the sweep for unclaimed nodes deletes the live page. The
+  walker therefore snapshots the child list up front. Re-attaching also
+  blurs a focused element, so an adopted node is never appended at all.
+
+  Pages containing `<if>` or `<each>` keep the old rebuild, byte for byte.
+  Those blocks build their rows fresh on every run, so adopting the markup
+  around one would bind effects across two generations of nodes — worse
+  than the rebuild it replaces. Row boundaries are also absent from the
+  server's output: `<!--[--><li>a</li><li>b</li><!--]-->` cannot tell two
+  one-row lists from one two-row list. Adopting lists needs a per-row
+  marker first.
+
+- **The runtime is 3256 B gzipped, against 2271 B in 1.2.0.** The walker
+  is the difference. It ships only to pages that hydrate; the fourteen
+  static pages of azox.dev still carry no JavaScript at all.
+
+### Added
+
+- **An `on:` handler that calls instead of wrapping is now a build
+  error.** `on:click={n.set(1)}` passed `addEventListener` whatever the
+  call returned, and the call itself ran while the page was being built.
+  The button appeared to fire once on load and never again, with nothing
+  reported anywhere. The message names the fix:
+
+  ```
+  Azox: on:click={n.set(1)} calls n.set() while the page is built, and
+  passes the result as the listener — write on:click={() => n.set(1)}
+  to call it on the event instead
+  ```
+
+  Only a call at the top level is rejected. A handler is far more often a
+  name (`handler`, `obj.method`, `fns[i]`) or an arrow whose body contains
+  a call, and those are untouched. Found on this project's own test
+  fixture, where a counter rendered `naik 0` on the server and `naik 1` a
+  moment after hydration — which looked like a hydration bug and was not.
+
+### Fixed
+
+- **The playground's module list was written twice and had drifted.**
+  `core/renderer/serverScope.js` was concatenated into the browser bundle
+  but missing from the test that checks those modules for clashing
+  top-level names, so its seven names went unchecked. That file's absence
+  from the bundle had already broken the playground once. The test now
+  reads the list out of the bundler instead of keeping a copy. No clash
+  exists today — 109 names across the nine modules are unique.
+
 ## 1.2.0 — 2026-09-13
 
 ### Added
